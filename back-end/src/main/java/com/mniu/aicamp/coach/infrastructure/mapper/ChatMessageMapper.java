@@ -1,0 +1,9 @@
+package com.mniu.aicamp.coach.infrastructure.mapper;
+
+import com.baomidou.mybatisplus.core.mapper.BaseMapper;
+import com.mniu.aicamp.coach.infrastructure.po.ChatMessagePO;
+import org.apache.ibatis.annotations.Mapper;
+
+@Mapper
+public interface ChatMessageMapper extends BaseMapper<ChatMessagePO> {
+}

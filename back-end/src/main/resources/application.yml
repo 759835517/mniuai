@@ -1,0 +1,136 @@
+server:
+  port: 8080
+  servlet:
+    context-path: /
+  shutdown: graceful
+
+spring:
+  application:
+    name: mniu-ai-camp-backend
+
+  profiles:
+    active: local
+
+  datasource:
+    url: jdbc:postgresql://localhost:5432/mniu_ai_camp
+    username: ${DB_USERNAME:mniu}
+    password: ${DB_PASSWORD:123456}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 20
+      minimum-idle: 5
+      connection-timeout: 30000
+      idle-timeout: 600000
+      max-lifetime: 1800000
+
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+    validate-on-migrate: true
+
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      timeout: 3s
+      lettuce:
+        pool:
+          max-active: 16
+          max-idle: 8
+          min-idle: 2
+
+  jackson:
+    time-zone: UTC
+    default-property-inclusion: non_null
+    serialization:
+      write-dates-as-timestamps: false
+
+  ai:
+    dashscope:
+      api-key: ${DASHSCOPE_API_KEY:}
+      chat:
+        options:
+          model: qwen-plus
+          temperature: 0.4
+
+# MyBatis-Plus
+mybatis-plus:
+  mapper-locations: classpath:mapper/**/*.xml
+  type-aliases-package: com.mniu.aicamp.*.infrastructure.po
+  global-config:
+    db-config:
+      id-type: INPUT
+      logic-delete-field: deleted
+      logic-delete-value: 1
+      logic-not-delete-value: 0
+    banner: false
+  configuration:
+    map-underscore-to-camel-case: true
+    log-impl: org.apache.ibatis.logging.slf4j.Slf4jImpl
+    cache-enabled: false
+
+# Actuator
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: when_authorized
+
+# OpenAPI
+springdoc:
+  api-docs:
+    enabled: true
+    path: /v3/api-docs
+  swagger-ui:
+    enabled: true
+    path: /swagger-ui.html
+
+# Application
+app:
+  security:
+    jwt:
+      issuer: mniu-ai-camp
+      secret: ${JWT_SECRET:}
+      access-token-ttl: 15m
+      refresh-token-ttl: 7d
+    cors:
+      allowed-origins:
+        - http://localhost:3000
+        - http://localhost:5173
+  ai:
+    provider: ${AI_PROVIDER:dashscope}
+    default-model: qwen-plus
+    dashscope:
+      base-url: https://dashscope.aliyuncs.com/compatible-mode/v1
+    timeout: 60s
+    max-retries: 2
+    roadmap:
+      max-duration-weeks: 24
+    coach:
+      max-input-tokens: 24000
+      max-output-tokens: 3000
+      max-message-chars: 12000
+    review:
+      max-snippet-bytes: 204800
+      max-repo-total-bytes: 307200
+      max-file-bytes: 81920
+  rate-limit:
+    enabled: true
+  github:
+    token: ${GITHUB_TOKEN:}
+    connect-timeout: 5s
+    read-timeout: 20s
+
+logging:
+  level:
+    root: INFO
+    com.mniu.aicamp: DEBUG
+    org.springframework.security: INFO
+    org.apache.ibatis: DEBUG
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level [%X{traceId:-}] %logger{36} - %msg%n"

@@ -1,0 +1,39 @@
+package com.mniu.aicamp.shared.api;
+
+import org.springframework.http.HttpStatus;
+
+public enum ErrorCode {
+    VALIDATION_ERROR(HttpStatus.BAD_REQUEST),
+    BAD_REQUEST(HttpStatus.BAD_REQUEST),
+    UNAUTHORIZED(HttpStatus.UNAUTHORIZED),
+    FORBIDDEN(HttpStatus.FORBIDDEN),
+    NOT_FOUND(HttpStatus.NOT_FOUND),
+    CONFLICT(HttpStatus.CONFLICT),
+    RATE_LIMITED(HttpStatus.TOO_MANY_REQUESTS),
+    INTERNAL_ERROR(HttpStatus.INTERNAL_SERVER_ERROR),
+    EMAIL_ALREADY_EXISTS(HttpStatus.CONFLICT),
+    WEAK_PASSWORD(HttpStatus.BAD_REQUEST),
+    INVALID_CREDENTIALS(HttpStatus.UNAUTHORIZED),
+    REFRESH_TOKEN_INVALID(HttpStatus.UNAUTHORIZED),
+    USER_NOT_FOUND(HttpStatus.NOT_FOUND),
+    ROADMAP_NOT_FOUND(HttpStatus.NOT_FOUND),
+    ROADMAP_TASK_NOT_FOUND(HttpStatus.NOT_FOUND),
+    AI_JSON_PARSE_FAILED(HttpStatus.INTERNAL_SERVER_ERROR),
+    AI_PROVIDER_ERROR(HttpStatus.BAD_GATEWAY),
+    CHAT_SESSION_NOT_FOUND(HttpStatus.NOT_FOUND),
+    MESSAGE_TOO_LONG(HttpStatus.BAD_REQUEST),
+    PROJECT_NOT_FOUND(HttpStatus.NOT_FOUND),
+    PROJECT_INVALID_STATUS_TRANSITION(HttpStatus.BAD_REQUEST),
+    PROJECT_COMPLETION_TOO_LOW(HttpStatus.BAD_REQUEST),
+    CODE_TOO_LARGE(HttpStatus.BAD_REQUEST);
+
+    private final HttpStatus httpStatus;
+
+    ErrorCode(HttpStatus httpStatus) {
+        this.httpStatus = httpStatus;
+    }
+
+    public HttpStatus httpStatus() {
+        return httpStatus;
+    }
+}

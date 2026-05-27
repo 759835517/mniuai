@@ -1,0 +1,76 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 216 28% 7%;
+    --foreground: 210 29% 96%;
+    --card: 214 21% 11%;
+    --card-foreground: 210 29% 96%;
+    --popover: 214 21% 11%;
+    --popover-foreground: 210 29% 96%;
+    --primary: 217 91% 60%;
+    --primary-foreground: 210 40% 98%;
+    --secondary: 215 16% 16%;
+    --secondary-foreground: 210 29% 96%;
+    --muted: 215 16% 16%;
+    --muted-foreground: 215 12% 58%;
+    --accent: 262 83% 65%;
+    --accent-foreground: 210 40% 98%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 215 13% 21%;
+    --input: 215 13% 21%;
+    --ring: 217 91% 60%;
+    --radius: 0.5rem;
+  }
+
+  html {
+    color-scheme: dark;
+  }
+
+  body {
+    min-height: 100vh;
+    background: #0d1117;
+    color: #f0f6fc;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+
+  * {
+    border-color: hsl(var(--border));
+  }
+
+  ::selection {
+    background: rgba(59, 130, 246, 0.45);
+  }
+}
+
+@layer components {
+  .mniu-panel {
+    @apply rounded-lg border border-mniu-border bg-mniu-panel shadow-panel;
+  }
+
+  .mniu-focus {
+    @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-0;
+  }
+
+  .mniu-gradient-text {
+    @apply bg-accent-gradient bg-clip-text text-transparent;
+  }
+
+  .mniu-scrollbar {
+    scrollbar-color: #30363d transparent;
+    scrollbar-width: thin;
+  }
+
+  .mniu-scrollbar::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+
+  .mniu-scrollbar::-webkit-scrollbar-thumb {
+    background: #30363d;
+    border-radius: 999px;
+  }
+}

@@ -14,15 +14,6 @@ export function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  const isPublic = publicRoutes.includes(pathname);
-  const tokenCookie = request.cookies.get("mniu_access_token")?.value;
-
-  if (!isPublic && !tokenCookie) {
-    const loginUrl = new URL("/login", request.url);
-    loginUrl.searchParams.set("redirect", pathname);
-    return NextResponse.redirect(loginUrl);
-  }
-
   return NextResponse.next();
 }
 

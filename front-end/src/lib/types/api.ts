@@ -1,8 +1,12 @@
 export interface ApiResponse<T> {
   success: boolean;
-  code: string;
-  message: string;
-  data: T;
+  code?: string;
+  message?: string;
+  data?: T;
+  error?: {
+    code?: string;
+    message?: string;
+  };
   traceId?: string;
   timestamp?: string;
 }

@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import type { LearningRoadmap, RoadmapProgress, RoadmapGenerateRequest, RoadmapTaskStatus } from "@/lib/types/roadmap";
+import { transformRoadmap } from "@/lib/types/roadmap";
 import type { ID } from "@/lib/types/api";
 import { roadmapApi } from "@/lib/api/roadmap";
 
@@ -31,7 +32,7 @@ export const useRoadmapStore = create<RoadmapState>((set, get) => ({
     set({ loading: true, error: null });
     try {
       const roadmap = await roadmapApi.getActive();
-      set({ activeRoadmap: roadmap, loading: false });
+      set({ activeRoadmap: roadmap ? transformRoadmap(roadmap) : null, loading: false });
       if (roadmap) {
         get().fetchProgress(roadmap.id);
       }
@@ -43,7 +44,7 @@ export const useRoadmapStore = create<RoadmapState>((set, get) => ({
   fetchHistory: async () => {
     try {
       const res = await roadmapApi.getHistory();
-      set({ history: res.items });
+      set({ history: res.items.map(transformRoadmap) });
     } catch { /* ignore */ }
   },
 
@@ -51,9 +52,10 @@ export const useRoadmapStore = create<RoadmapState>((set, get) => ({
     set({ generating: true, error: null });
     try {
       const roadmap = await roadmapApi.generate(payload);
-      set({ activeRoadmap: roadmap, generating: false });
+      const transformed = transformRoadmap(roadmap);
+      set({ activeRoadmap: transformed, generating: false });
       await get().fetchProgress(roadmap.id);
-      return roadmap;
+      return transformed;
     } catch (e) {
       set({ generating: false, error: (e as Error).message });
       throw e;
@@ -62,7 +64,16 @@ export const useRoadmapStore = create<RoadmapState>((set, get) => ({
 
   fetchProgress: async (roadmapId) => {
     try {
-      const progress = await roadmapApi.getProgress(roadmapId);
+      const raw = await roadmapApi.getProgress(roadmapId) as any;
+      // Backend returns { roadmapId, totalTasks, completedTasks, completionPercent }
+      // Normalize to frontend format: completionRate (0-1), items from backend status map
+      const progress: RoadmapProgress = {
+        roadmapId: raw.roadmapId ?? roadmapId,
+        totalTasks: raw.totalTasks ?? 0,
+        completedTasks: raw.completedTasks ?? 0,
+        completionRate: raw.completionRate ?? (raw.completionPercent != null ? raw.completionPercent / 100 : 0),
+        items: raw.items ?? [],
+      };
       set({ progress });
     } catch { /* ignore */ }
   },

@@ -28,14 +28,20 @@ function LoginForm() {
   });
 
   useEffect(() => {
-    if (isAuthenticated) router.replace(redirect);
+    if (isAuthenticated) {
+      console.log('[LoginForm] isAuthenticated=true, redirecting to:', redirect);
+      router.replace(redirect);
+    }
   }, [isAuthenticated, redirect, router]);
 
   const onSubmit = async (data: LoginFormData) => {
+    console.log('[LoginForm] onSubmit called with:', { email: data.email });
     try {
       await login(data);
-      router.replace(redirect);
-    } catch { /* error in store */ }
+      console.log('[LoginForm] login() completed successfully');
+    } catch (e) {
+      console.log('[LoginForm] login() failed:', (e as Error).message);
+    }
   };
 
   return (

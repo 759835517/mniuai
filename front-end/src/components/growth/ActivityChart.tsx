@@ -25,14 +25,17 @@ export default function ActivityChart() {
 
   if (!stats) return null;
 
+  const dailyXp = stats.dailyXp || [];
+  const activityDistribution = stats.activityDistribution || [];
+
   return (
     <div className="space-y-4">
       {/* Daily XP Chart */}
-      {stats.dailyXp.length > 0 && (
+      {dailyXp.length > 0 && (
         <Card className="border-[#30363D] bg-[#161B22] p-6">
           <h3 className="mb-4 text-sm font-semibold">每日经验值</h3>
           <ResponsiveContainer width="100%" height={200}>
-            <AreaChart data={stats.dailyXp}>
+            <AreaChart data={dailyXp}>
               <defs>
                 <linearGradient id="xpGradient" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="5%" stopColor="#3B82F6" stopOpacity={0.3} />
@@ -63,11 +66,11 @@ export default function ActivityChart() {
       )}
 
       {/* Activity Distribution */}
-      {stats.activityDistribution.length > 0 && (
+      {activityDistribution.length > 0 && (
         <Card className="border-[#30363D] bg-[#161B22] p-6">
           <h3 className="mb-4 text-sm font-semibold">活动分布</h3>
           <ResponsiveContainer width="100%" height={200}>
-            <BarChart data={stats.activityDistribution}>
+            <BarChart data={activityDistribution}>
               <CartesianGrid strokeDasharray="3 3" stroke="#30363D" />
               <XAxis dataKey="type" stroke="#484F58" fontSize={11} />
               <YAxis stroke="#484F58" fontSize={11} />

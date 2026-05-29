@@ -30,9 +30,11 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     set({ loading: true });
     try {
       const res = await projectApi.getProjects();
-      set({ projects: res.items, loading: false });
+      // Backend may return array directly or PageResponse format
+      const items = Array.isArray(res) ? res : (res?.items || []);
+      set({ projects: items, loading: false });
     } catch (e) {
-      set({ loading: false, error: (e as Error).message });
+      set({ loading: false, error: (e as Error).message, projects: [] });
     }
   },
 

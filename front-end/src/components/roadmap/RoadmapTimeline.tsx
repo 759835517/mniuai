@@ -13,14 +13,14 @@ interface RoadmapTimelineProps {
 
 export default function RoadmapTimeline({ roadmap, progress, onUpdateTaskStatus }: RoadmapTimelineProps) {
   const getTaskStatus = (weekNumber: number, taskIndex: number): RoadmapTaskStatus => {
-    const item = progress?.items.find((i) => i.weekNumber === weekNumber && i.taskIndex === taskIndex);
+    const item = progress?.items?.find((i) => i.weekNumber === weekNumber && i.taskIndex === taskIndex);
     return item?.status || "NOT_STARTED";
   };
 
   return (
     <div className="space-y-4">
       {/* Progress Summary */}
-      {progress && (
+      {progress && roadmap.roadmap && (
         <Card className="border-[#30363D] bg-[#161B22] p-6">
           <p className="mb-4 text-sm text-[#8B949E]">{roadmap.roadmap.summary}</p>
           <ProgressTracker
@@ -32,7 +32,7 @@ export default function RoadmapTimeline({ roadmap, progress, onUpdateTaskStatus 
       )}
 
       {/* Weeks */}
-      {roadmap.roadmap.weeks.map((week) => (
+      {roadmap.roadmap.weeks?.map((week) => (
         <Card key={week.week} className="border-[#30363D] bg-[#161B22] p-6">
           <div className="mb-3 flex items-center gap-3">
             <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#3B82F6]/20 text-sm font-bold text-[#3B82F6]">

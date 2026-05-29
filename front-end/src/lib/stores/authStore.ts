@@ -28,9 +28,29 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     set({ loading: true, error: null });
     try {
       const tokens = await authApi.login(payload);
+      if (!tokens?.accessToken) {
+        throw new Error("登录失败：服务端未返回访问令牌，请重试");
+      }
       tokenStorage.setAccessToken(tokens.accessToken);
       if (tokens.refreshToken) tokenStorage.setRefreshToken(tokens.refreshToken);
-      const user = await authApi.me();
+      const raw = await authApi.me() as any;
+      // Backend returns UserAccount with displayName and skills as newline-separated string
+      const user: User = {
+        id: raw.id,
+        email: raw.email,
+        nickname: raw.nickname ?? raw.displayName ?? null,
+        avatarUrl: raw.avatarUrl ?? null,
+        currentSkills: Array.isArray(raw.currentSkills)
+          ? raw.currentSkills
+          : Array.isArray(raw.skills)
+          ? raw.skills
+          : (typeof raw.skills === 'string' && raw.skills ? raw.skills.split('\n').filter(Boolean) : []),
+        learningGoal: raw.learningGoal ?? raw.goal ?? null,
+        availableHours: raw.availableHours ?? raw.weeklyHours ?? 0,
+        roles: raw.roles ?? ["USER"],
+        status: raw.status ?? "ACTIVE",
+        createdAt: raw.createdAt ?? new Date().toISOString(),
+      };
       set({ user, isAuthenticated: true, loading: false, initialized: true });
     } catch (e) {
       set({ loading: false, error: (e as Error).message });
@@ -42,9 +62,28 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     set({ loading: true, error: null });
     try {
       const tokens = await authApi.register(payload);
+      if (!tokens?.accessToken) {
+        throw new Error("注册失败：服务端未返回访问令牌，请重试");
+      }
       tokenStorage.setAccessToken(tokens.accessToken);
       if (tokens.refreshToken) tokenStorage.setRefreshToken(tokens.refreshToken);
-      const user = await authApi.me();
+      const raw = await authApi.me() as any;
+      const user: User = {
+        id: raw.id,
+        email: raw.email,
+        nickname: raw.nickname ?? raw.displayName ?? null,
+        avatarUrl: raw.avatarUrl ?? null,
+        currentSkills: Array.isArray(raw.currentSkills)
+          ? raw.currentSkills
+          : Array.isArray(raw.skills)
+          ? raw.skills
+          : (typeof raw.skills === 'string' && raw.skills ? raw.skills.split('\n').filter(Boolean) : []),
+        learningGoal: raw.learningGoal ?? raw.goal ?? null,
+        availableHours: raw.availableHours ?? raw.weeklyHours ?? 0,
+        roles: raw.roles ?? ["USER"],
+        status: raw.status ?? "ACTIVE",
+        createdAt: raw.createdAt ?? new Date().toISOString(),
+      };
       set({ user, isAuthenticated: true, loading: false, initialized: true });
     } catch (e) {
       set({ loading: false, error: (e as Error).message });
@@ -54,7 +93,24 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   fetchMe: async () => {
     try {
-      const user = await authApi.me();
+      const raw = await authApi.me() as any;
+      // Backend returns UserAccount with displayName and skills as newline-separated string
+      const user: User = {
+        id: raw.id,
+        email: raw.email,
+        nickname: raw.nickname ?? raw.displayName ?? null,
+        avatarUrl: raw.avatarUrl ?? null,
+        currentSkills: Array.isArray(raw.currentSkills)
+          ? raw.currentSkills
+          : Array.isArray(raw.skills)
+          ? raw.skills
+          : (typeof raw.skills === 'string' && raw.skills ? raw.skills.split('\n').filter(Boolean) : []),
+        learningGoal: raw.learningGoal ?? raw.goal ?? null,
+        availableHours: raw.availableHours ?? raw.weeklyHours ?? 0,
+        roles: raw.roles ?? ["USER"],
+        status: raw.status ?? "ACTIVE",
+        createdAt: raw.createdAt ?? new Date().toISOString(),
+      };
       set({ user, isAuthenticated: true, initialized: true });
     } catch {
       tokenStorage.clear();

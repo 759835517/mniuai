@@ -32,10 +32,13 @@ apiClient.interceptors.request.use((config: InternalAxiosRequestConfig) => {
 apiClient.interceptors.response.use(
   (response) => {
     const body = response.data as ApiResponse<unknown>;
-    if (typeof body?.code === "string" && body.code !== "OK") {
-      return Promise.reject(new Error(body.message || "请求失败"));
-    }
+    // Check for error in ApiResponse format: { success: false, error: { code, message } }
     if (typeof body?.success === "boolean" && !body.success) {
+      const errorMessage = body.error?.message || body.message || "请求失败";
+      return Promise.reject(new Error(errorMessage));
+    }
+    // Legacy format check (some APIs may return code at top level)
+    if (typeof body?.code === "string" && body.code !== "OK") {
       return Promise.reject(new Error(body.message || "请求失败"));
     }
     return body?.data ?? response.data;
@@ -66,8 +69,9 @@ async function doRefresh(): Promise<string | null> {
       `${baseURL}/auth/refresh`,
       { refreshToken: rt }
     );
-    const d = (res.data as unknown as ApiResponse<{ accessToken: string; refreshToken?: string }>).data ?? res.data.data;
-    if (d.accessToken) {
+    const body = res.data as unknown as ApiResponse<{ accessToken: string; refreshToken?: string }>;
+    const d = body.data ?? res.data.data;
+    if (d && d.accessToken) {
       tokenStorage.setAccessToken(d.accessToken);
       if (d.refreshToken) tokenStorage.setRefreshToken(d.refreshToken);
       return d.accessToken;
@@ -81,6 +85,6 @@ async function doRefresh(): Promise<string | null> {
 }
 
 function extractError(error: AxiosError): string {
-  const data = error.response?.data as { message?: string } | undefined;
-  return data?.message || error.message || "网络请求失败";
+  const data = error.response?.data as { error?: { message?: string }; message?: string } | undefined;
+  return data?.error?.message || data?.message || error.message || "网络请求失败";
 }

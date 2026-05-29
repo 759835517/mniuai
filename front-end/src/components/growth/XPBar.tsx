@@ -19,7 +19,7 @@ export default function XPBar({ xp, level, nextLevelXp, progressToNextLevel }: X
         />
       </div>
       <span className="shrink-0 text-xs text-[#8B949E]">
-        {xp.toLocaleString()} / {nextLevelXp.toLocaleString()}
+        {(xp ?? 0).toLocaleString()} / {(nextLevelXp ?? 0).toLocaleString()}
       </span>
     </div>
   );

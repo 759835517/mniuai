@@ -33,9 +33,9 @@ export default function RegisterPage() {
   const onSubmit = async (data: RegisterFormData) => {
     try {
       await registerUser(data);
-      router.replace("/dashboard");
+      // registerUser() sets isAuthenticated=true, the useEffect above will handle redirect
     } catch {
-      // error is set in store
+      // error displayed in store
     }
   };
 

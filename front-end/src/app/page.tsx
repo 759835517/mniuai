@@ -21,7 +21,7 @@ const features = [
 const techStack = ["Python", "LangChain", "Spring AI", "Qwen", "pgvector", "FastAPI", "Docker", "Vector DB", "RAG", "Agent"];
 
 export default function LandingPage() {
-  const { isAuthenticated, hydrateFromStorage } = useAuthStore();
+  const { user, isAuthenticated, hydrateFromStorage } = useAuthStore();
   useEffect(() => { hydrateFromStorage(); }, [hydrateFromStorage]);
 
   return (
@@ -34,12 +34,29 @@ export default function LandingPage() {
             <span className="text-lg font-bold">MNIU AI Camp</span>
           </div>
           <div className="flex items-center gap-3">
-            <Link href="/login"><Button variant="ghost" size="sm">登录</Button></Link>
-            <Link href={isAuthenticated ? "/dashboard" : "/register"}>
-              <Button size="sm" className="bg-gradient-to-r from-[#3B82F6] to-[#8B5CF6] hover:opacity-90">
-                {isAuthenticated ? "进入工作台" : "免费注册"}
-              </Button>
-            </Link>
+            {isAuthenticated ? (
+              <>
+                <Link href="/dashboard">
+                  <Button variant="ghost" size="sm">
+                    {user?.nickname || user?.email?.split("@")[0] || "用户"}
+                  </Button>
+                </Link>
+                <Link href="/dashboard">
+                  <Button size="sm" className="bg-gradient-to-r from-[#3B82F6] to-[#8B5CF6] hover:opacity-90">
+                    进入工作台
+                  </Button>
+                </Link>
+              </>
+            ) : (
+              <>
+                <Link href="/login"><Button variant="ghost" size="sm">登录</Button></Link>
+                <Link href="/register">
+                  <Button size="sm" className="bg-gradient-to-r from-[#3B82F6] to-[#8B5CF6] hover:opacity-90">
+                    免费注册
+                  </Button>
+                </Link>
+              </>
+            )}
           </div>
         </div>
       </nav>

@@ -11,7 +11,7 @@ export default function ProgressTracker({ completedTasks, totalTasks, completion
     <div>
       <div className="mb-2 flex items-center justify-between">
         <span className="text-sm text-[#8B949E]">总体进度</span>
-        <span className="text-sm font-medium">{Math.round(completionRate * 100)}%</span>
+        <span className="text-sm font-medium">{isNaN(completionRate) ? 0 : Math.round(completionRate * 100)}%</span>
       </div>
       <div className="h-2.5 overflow-hidden rounded-full bg-[#1C2128]">
         <div

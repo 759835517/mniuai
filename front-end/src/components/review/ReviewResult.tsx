@@ -1,6 +1,7 @@
 "use client";
 
 import { Card } from "@/components/ui/card";
+import MarkdownRenderer from "@/components/shared/MarkdownRenderer";
 import DiffView from "./DiffView";
 import type { CodeReview, ReviewIssue } from "@/lib/types/review";
 import { formatDateTime } from "@/lib/utils/format";
@@ -55,27 +56,19 @@ export default function ReviewResult({ review }: ReviewResultProps) {
       {/* Summary */}
       <Card className="border-[#30363D] bg-[#161B22] p-6">
         <h2 className="mb-3 text-lg font-semibold">总结</h2>
-        <p className="text-sm leading-relaxed text-[#8B949E]">{review.review.summary}</p>
+        <MarkdownRenderer content={review.review.summary} />
 
         {review.review.strengths && review.review.strengths.length > 0 && (
           <div className="mt-4">
             <h3 className="mb-2 text-sm font-medium text-green-400">优点</h3>
-            <ul className="list-disc pl-5 text-sm text-[#8B949E]">
-              {review.review.strengths.map((s, i) => (
-                <li key={i} className="mb-1">{s}</li>
-              ))}
-            </ul>
+            <MarkdownRenderer content={review.review.strengths.map((s) => `- ${s}`).join("\n")} />
           </div>
         )}
 
         {review.review.nextSteps && review.review.nextSteps.length > 0 && (
           <div className="mt-4">
             <h3 className="mb-2 text-sm font-medium text-[#3B82F6]">下一步建议</h3>
-            <ul className="list-disc pl-5 text-sm text-[#8B949E]">
-              {review.review.nextSteps.map((s, i) => (
-                <li key={i} className="mb-1">{s}</li>
-              ))}
-            </ul>
+            <MarkdownRenderer content={review.review.nextSteps.map((s) => `- ${s}`).join("\n")} />
           </div>
         )}
       </Card>
@@ -138,8 +131,15 @@ function IssueCard({ issue }: { issue: ReviewIssue }) {
               {issue.severity}
             </span>
           </div>
-          <p className="mt-2 text-sm">{issue.message}</p>
-          {issue.suggestion && <p className="mt-2 text-sm text-[#3B82F6]">建议: {issue.suggestion}</p>}
+          <div className="mt-2">
+            <MarkdownRenderer content={issue.message} />
+          </div>
+          {issue.suggestion && (
+            <div className="mt-2 rounded-md border border-[#30363D] bg-[#0D1117] p-3">
+              <p className="mb-2 text-xs font-medium text-[#3B82F6]">建议</p>
+              <MarkdownRenderer content={issue.suggestion} />
+            </div>
+          )}
           {issue.originalCode && issue.suggestedCode && (
             <div className="mt-3">
               <DiffView original={issue.originalCode} modified={issue.suggestedCode} language="text" height={150} />

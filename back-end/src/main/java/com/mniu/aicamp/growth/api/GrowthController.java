@@ -1,9 +1,9 @@
 package com.mniu.aicamp.growth.api;
 
+import com.mniu.aicamp.growth.application.GrowthService;
 import com.mniu.aicamp.shared.api.ApiResponse;
 import com.mniu.aicamp.shared.api.PageResponse;
 import com.mniu.aicamp.shared.security.CurrentUsers;
-import com.mniu.aicamp.user.application.PlatformService;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -15,19 +15,19 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/v1/growth")
 public class GrowthController {
-    private final PlatformService service;
+    private final GrowthService service;
 
-    public GrowthController(PlatformService service) {
+    public GrowthController(GrowthService service) {
         this.service = service;
     }
 
     @GetMapping("/me")
-    ApiResponse<PlatformService.Growth> me() {
+    ApiResponse<GrowthService.Growth> me() {
         return ApiResponse.ok(service.getGrowth(CurrentUsers.require().id()));
     }
 
     @GetMapping("/profile")
-    ApiResponse<PlatformService.Growth> profile() {
+    ApiResponse<GrowthService.Growth> profile() {
         return me();
     }
 
@@ -48,7 +48,7 @@ public class GrowthController {
 
     @GetMapping("/stats")
     ApiResponse<Map<String, Object>> stats() {
-        PlatformService.Growth growth = service.getGrowth(CurrentUsers.require().id());
+        GrowthService.Growth growth = service.getGrowth(CurrentUsers.require().id());
         return ApiResponse.ok(Map.of(
                 "xp", growth.xp(),
                 "level", growth.level(),

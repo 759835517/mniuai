@@ -3,6 +3,7 @@ package com.mniu.aicamp.shared.util;
 import org.springframework.stereotype.Component;
 
 import java.time.Instant;
+import java.util.function.LongSupplier;
 
 @Component
 public class SnowflakeIdGenerator {
@@ -15,11 +16,18 @@ public class SnowflakeIdGenerator {
     private static final long TIMESTAMP_SHIFT = SEQUENCE_BITS + WORKER_ID_BITS;
 
     private final long workerId;
+    private final LongSupplier clock;
     private long lastTimestamp = -1L;
     private long sequence = 0L;
 
     public SnowflakeIdGenerator() {
-        this.workerId = resolveWorkerId();
+        this(resolveWorkerId(), System::currentTimeMillis);
+    }
+
+    SnowflakeIdGenerator(long workerId, LongSupplier clock) {
+        validateWorkerId(workerId);
+        this.workerId = workerId;
+        this.clock = clock;
     }
 
     public synchronized long nextId() {
@@ -48,18 +56,21 @@ public class SnowflakeIdGenerator {
     }
 
     private long currentTimeMillis() {
-        return System.currentTimeMillis();
+        return clock.getAsLong();
     }
 
-    private long resolveWorkerId() {
+    private static long resolveWorkerId() {
         String configured = System.getenv("SNOWFLAKE_WORKER_ID");
         if (configured == null || configured.isBlank()) {
             return 1L;
         }
-        long parsed = Long.parseLong(configured);
-        if (parsed < 0 || parsed > MAX_WORKER_ID) {
+        return validateWorkerId(Long.parseLong(configured));
+    }
+
+    private static long validateWorkerId(long workerId) {
+        if (workerId < 0 || workerId > MAX_WORKER_ID) {
             throw new IllegalArgumentException("SNOWFLAKE_WORKER_ID must be between 0 and " + MAX_WORKER_ID);
         }
-        return parsed;
+        return workerId;
     }
 }

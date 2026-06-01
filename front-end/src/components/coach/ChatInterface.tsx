@@ -62,7 +62,7 @@ export default function ChatInterface({
   }, [messages, isAtBottom]);
 
   return (
-    <div className="flex min-w-0 flex-1 flex-col rounded-lg border border-[#30363D] bg-[#161B22]">
+    <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-lg border border-[#30363D] bg-[#161B22]">
       {/* Header */}
       <div className="flex items-center gap-2 border-b border-[#30363D] px-4 py-3">
         <Button variant="ghost" size="icon" onClick={onToggleSidebar} className="h-8 w-8">
@@ -72,7 +72,7 @@ export default function ChatInterface({
       </div>
 
       {/* Messages */}
-      <div ref={scrollRef} onScroll={handleScroll} className="flex-1 overflow-y-auto px-4 py-6">
+      <div ref={scrollRef} onScroll={handleScroll} className="mniu-scrollbar min-h-0 flex-1 overflow-y-auto px-4 py-6">
         {loadingMessages && <Loading text="加载消息..." />}
 
         {!loadingMessages && messages.length === 0 && (
@@ -90,7 +90,7 @@ export default function ChatInterface({
       </div>
 
       {/* Input */}
-      <div className="border-t border-[#30363D] px-4 py-3">
+      <div className="shrink-0 border-t border-[#30363D] px-4 py-4">
         <div className="flex items-end gap-2">
           <textarea
             ref={textareaRef}
@@ -98,16 +98,16 @@ export default function ChatInterface({
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder="输入消息... (Enter 发送, Shift+Enter 换行)"
-            rows={1}
-            className="flex-1 resize-none rounded-md border border-[#30363D] bg-[#0D1117] px-3 py-2 text-sm text-[#F0F6FC] placeholder:text-[#484F58] focus:outline-none focus:ring-1 focus:ring-[#3B82F6]"
-            style={{ maxHeight: 120 }}
+            rows={3}
+            className="mniu-scrollbar min-h-[88px] flex-1 resize-none rounded-md border border-[#30363D] bg-[#0D1117] px-3 py-3 text-sm leading-relaxed text-[#F0F6FC] placeholder:text-[#484F58] focus:outline-none focus:ring-1 focus:ring-[#3B82F6]"
+            style={{ maxHeight: 160 }}
           />
           {sending ? (
             <Button
               variant="outline"
               size="icon"
               onClick={onStopStreaming}
-              className="shrink-0 border-[#30363D] hover:bg-red-500/10 hover:text-red-400"
+              className="h-10 w-10 shrink-0 border-[#30363D] hover:bg-red-500/10 hover:text-red-400"
             >
               <Square className="h-4 w-4" />
             </Button>
@@ -116,7 +116,7 @@ export default function ChatInterface({
               size="icon"
               onClick={handleSend}
               disabled={!input.trim()}
-              className="shrink-0 bg-[#3B82F6]"
+              className="h-10 w-10 shrink-0 bg-[#3B82F6]"
             >
               <Send className="h-4 w-4" />
             </Button>

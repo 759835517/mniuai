@@ -62,8 +62,8 @@ export const useChatStore = create<ChatState>((set, get) => ({
     const session = get().sessions.find((s) => s.id === sessionId);
     if (session) {
       set({ currentSession: session });
-      await get().fetchMessages(sessionId);
     }
+    await get().fetchMessages(sessionId);
   },
 
   fetchMessages: async (sessionId) => {

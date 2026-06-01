@@ -9,6 +9,7 @@ import org.testcontainers.containers.PostgreSQLContainer;
 
 @SpringBootTest(properties = {
         "app.ai.provider=fake",
+        "app.repository.provider=fake",
         "spring.ai.dashscope.api-key=test-key"
 })
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)

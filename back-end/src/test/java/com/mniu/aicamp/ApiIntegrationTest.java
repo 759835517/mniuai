@@ -13,8 +13,13 @@ import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.options;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.asyncDispatch;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.request;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -69,6 +74,7 @@ class ApiIntegrationTest extends IntegrationTestBase {
                 """);
         String firstRoadmapId = roadmap.at("/data/id").asText();
         String taskId = roadmap.at("/data/tasks/0/id").asText();
+        assertThat(roadmap.at("/data/tasks/0/title").asText()).isEqualTo("Build Java AI service skeleton");
         JsonNode secondRoadmap = postJsonWithToken("/api/v1/roadmaps", accessToken, """
                 {"targetRole":"Agent Engineer","weeklyHours":8,"durationWeeks":1}
                 """);
@@ -91,15 +97,24 @@ class ApiIntegrationTest extends IntegrationTestBase {
                 .andExpect(status().isNotFound());
         JsonNode active = getJsonWithToken("/api/v1/roadmaps/active", accessToken);
         String activeTaskId = active.at("/data/tasks/0/id").asText();
-        mvc.perform(put("/api/v1/roadmaps/tasks/{taskId}", activeTaskId)
-                        .header(HttpHeaders.AUTHORIZATION, bearer(accessToken))
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"completed\":true}"))
-                .andExpect(status().isOk());
+        for (JsonNode activeTask : active.at("/data/tasks")) {
+            mvc.perform(put("/api/v1/roadmaps/tasks/{taskId}", activeTask.get("id").asText())
+                            .header(HttpHeaders.AUTHORIZATION, bearer(accessToken))
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("{\"completed\":true}"))
+                    .andExpect(status().isOk());
+        }
         mvc.perform(get("/api/v1/roadmaps/{roadmapId}/progress", active.at("/data/id").asText())
                         .header(HttpHeaders.AUTHORIZATION, bearer(accessToken)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.completionPercent").value(100));
+
+        mvc.perform(put("/api/v1/roadmaps/{roadmapId}/tasks/{taskId}", active.at("/data/id").asText(), activeTaskId)
+                        .header(HttpHeaders.AUTHORIZATION, bearer(accessToken))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"completed\":false}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.tasks[0].completed").value(false));
 
         JsonNode session = postJsonWithToken("/api/v1/coach/sessions", accessToken, """
                 {"title":"General","contextType":"GENERAL"}
@@ -115,11 +130,29 @@ class ApiIntegrationTest extends IntegrationTestBase {
                         .header(HttpHeaders.AUTHORIZATION, bearer(accessToken)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.messages.length()").value(2));
+        var streamResult = mvc.perform(post("/api/v1/coach/sessions/{sessionId}/messages/stream", sessionId)
+                        .header(HttpHeaders.AUTHORIZATION, bearer(accessToken))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"content\":\"Stream a testing hint\"}"))
+                .andExpect(request().asyncStarted())
+                .andReturn();
+
+        var dispatchedStreamResult = mvc.perform(asyncDispatch(streamResult))
+                .andExpect(status().isOk())
+                .andExpect(header().string(HttpHeaders.CACHE_CONTROL, "no-cache, no-transform"))
+                .andExpect(header().string("X-Accel-Buffering", "no"))
+                .andReturn();
+        assertThat(dispatchedStreamResult.getResponse().getContentType()).contains(MediaType.TEXT_EVENT_STREAM_VALUE);
+        assertThat(dispatchedStreamResult.getResponse().getContentAsString())
+                .contains("event:token", "\"delta\":", "event:done");
+        assertThat(dispatchedStreamResult.getResponse().getContentAsString().split("event:token", -1).length - 1)
+                .isGreaterThanOrEqualTo(2);
 
         JsonNode project = postJsonWithToken("/api/v1/projects", accessToken, """
                 {"name":"RAG Demo","type":"RAG"}
                 """);
         String projectId = project.at("/data/id").asText();
+        assertThat(project.at("/data/tasks/0/title").asText()).isEqualTo("Design API contract");
         mvc.perform(get("/api/v1/projects/{projectId}", projectId)
                         .header(HttpHeaders.AUTHORIZATION, bearer(accessToken)))
                 .andExpect(status().isOk())
@@ -148,6 +181,20 @@ class ApiIntegrationTest extends IntegrationTestBase {
                         .content("{\"language\":\"java\",\"code\":\"class A {}\"}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.score").value(86));
+        mvc.perform(post("/api/v1/reviews/repository")
+                        .header(HttpHeaders.AUTHORIZATION, bearer(accessToken))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"repositoryUrl\":\"https://github.com/mniu/example\",\"branch\":\"main\",\"language\":\"java\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.language").value("java"))
+                .andExpect(jsonPath("$.data.suggestions[0]").value(org.hamcrest.Matchers.containsString("mniu/example")))
+                .andExpect(jsonPath("$.data.suggestions[1]").value(org.hamcrest.Matchers.containsString("src/main/java/App.java")));
+        mvc.perform(post("/api/v1/reviews/repository")
+                        .header(HttpHeaders.AUTHORIZATION, bearer(accessToken))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"repositoryUrl\":\"https://github.com/mniu/too-large\",\"branch\":\"main\",\"language\":\"java\"}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error.code").value("REPO_TOO_LARGE"));
         JsonNode reviews = getJsonWithToken("/api/v1/reviews", accessToken);
         String reviewId = reviews.at("/data/0/id").asText();
         mvc.perform(get("/api/v1/reviews/{reviewId}", reviewId)
@@ -173,6 +220,30 @@ class ApiIntegrationTest extends IntegrationTestBase {
         mvc.perform(get("/api/v1/notifications/unread-count").header(HttpHeaders.AUTHORIZATION, bearer(accessToken)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.count").value(0));
+    }
+
+    @Test
+    void frameworkErrorsUseUnifiedApiResponse() throws Exception {
+        mvc.perform(get("/api/v1/auth/login"))
+                .andExpect(status().isMethodNotAllowed())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.error.code").value("METHOD_NOT_ALLOWED"));
+
+        mvc.perform(get("/api/v1/auth/missing-route"))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.error.code").value("NOT_FOUND"));
+    }
+
+    @Test
+    void directBrowserSsePreflightAllowsConfiguredOrigin() throws Exception {
+        mvc.perform(options("/api/v1/coach/sessions/1/messages/stream")
+                        .header(HttpHeaders.ORIGIN, "http://localhost:3000")
+                        .header(HttpHeaders.ACCESS_CONTROL_REQUEST_METHOD, "POST")
+                        .header(HttpHeaders.ACCESS_CONTROL_REQUEST_HEADERS, "authorization,content-type"))
+                .andExpect(status().isOk())
+                .andExpect(header().string(HttpHeaders.ACCESS_CONTROL_ALLOW_ORIGIN, "http://localhost:3000"))
+                .andExpect(header().string(HttpHeaders.ACCESS_CONTROL_ALLOW_CREDENTIALS, "true"));
     }
 
     private JsonNode postJson(String path, String json) throws Exception {

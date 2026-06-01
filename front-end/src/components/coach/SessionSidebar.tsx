@@ -20,14 +20,14 @@ export default function SessionSidebar({
   onCreate,
 }: SessionSidebarProps) {
   return (
-    <div className="flex h-full w-64 flex-col rounded-lg border border-[#30363D] bg-[#161B22]">
+    <div className="flex h-full w-64 flex-col overflow-hidden rounded-lg border border-[#30363D] bg-[#161B22]">
       <div className="flex items-center justify-between border-b border-[#30363D] p-3">
         <span className="text-sm font-medium">会话列表</span>
         <Button variant="ghost" size="icon" onClick={onCreate} className="h-7 w-7">
           <Plus className="h-4 w-4" />
         </Button>
       </div>
-      <div className="flex-1 overflow-y-auto p-2">
+      <div className="mniu-scrollbar min-h-0 flex-1 overflow-y-auto p-2">
         {sessions.map((session) => (
           <div
             key={session.id}

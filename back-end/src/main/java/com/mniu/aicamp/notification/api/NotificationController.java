@@ -1,9 +1,10 @@
 package com.mniu.aicamp.notification.api;
 
+import com.mniu.aicamp.notification.application.Notification;
+import com.mniu.aicamp.notification.application.NotificationService;
 import com.mniu.aicamp.shared.api.ApiResponse;
 import com.mniu.aicamp.shared.api.PageResponse;
 import com.mniu.aicamp.shared.security.CurrentUsers;
-import com.mniu.aicamp.user.application.PlatformService;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -17,9 +18,9 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/v1/notifications")
 public class NotificationController {
-    private final PlatformService service;
+    private final NotificationService service;
 
-    public NotificationController(PlatformService service) {
+    public NotificationController(NotificationService service) {
         this.service = service;
     }
 
@@ -27,7 +28,7 @@ public class NotificationController {
     ApiResponse<?> list(@RequestParam(required = false) Integer page,
                         @RequestParam(required = false) Integer size,
                         @RequestParam(required = false, defaultValue = "false") boolean unreadOnly) {
-        List<PlatformService.Notification> notifications = service.notifications(CurrentUsers.require().id());
+        List<Notification> notifications = service.listNotifications(CurrentUsers.require().id());
         if (unreadOnly) {
             notifications = notifications.stream().filter(notification -> !notification.read()).toList();
         }

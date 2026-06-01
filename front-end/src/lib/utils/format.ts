@@ -1,16 +1,26 @@
 import { format, formatDistanceToNow, parseISO } from "date-fns";
 import { zhCN } from "date-fns/locale";
 
-export function formatDateTime(iso: string): string {
-  return format(parseISO(iso), "yyyy-MM-dd HH:mm", { locale: zhCN });
+function parseSafeDate(iso?: string | null): Date | null {
+  if (!iso) return null;
+  const date = parseISO(iso);
+  return Number.isNaN(date.getTime()) ? null : date;
 }
 
-export function formatDate(iso: string): string {
-  return format(parseISO(iso), "yyyy-MM-dd", { locale: zhCN });
+export function formatDateTime(iso?: string | null): string {
+  const date = parseSafeDate(iso);
+  return date ? format(date, "yyyy-MM-dd HH:mm", { locale: zhCN }) : "";
 }
 
-export function formatRelativeTime(iso: string): string {
-  return formatDistanceToNow(parseISO(iso), { addSuffix: true, locale: zhCN });
+export function formatDate(iso?: string | null): string {
+  const date = parseSafeDate(iso);
+  return date ? format(date, "yyyy-MM-dd", { locale: zhCN }) : "";
+}
+
+export function formatRelativeTime(iso?: string | null): string {
+  const date = parseSafeDate(iso);
+  if (!date) return "";
+  return formatDistanceToNow(date, { addSuffix: true, locale: zhCN });
 }
 
 export function formatXp(xp: number): string {

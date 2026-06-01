@@ -43,6 +43,7 @@ export async function postSse(options: SsePostOptions): Promise<void> {
     const { done, value } = await reader.read();
     if (done) break;
     buffer += decoder.decode(value, { stream: true });
+    buffer = buffer.replace(/\r\n/g, "\n");
     const chunks = buffer.split("\n\n");
     buffer = chunks.pop() ?? "";
 
@@ -61,14 +62,15 @@ export async function postSse(options: SsePostOptions): Promise<void> {
 
 function parseSseChunk(chunk: string): { type: string; data: Record<string, unknown> | null } {
   let type = "";
-  let dataStr = "";
+  const dataLines: string[] = [];
   for (const line of chunk.split("\n")) {
-    if (line.startsWith("event: ")) {
-      type = line.slice(7).trim();
-    } else if (line.startsWith("data: ")) {
-      dataStr = line.slice(6);
+    if (line.startsWith("event:")) {
+      type = line.slice(6).trim();
+    } else if (line.startsWith("data:")) {
+      dataLines.push(line.slice(5).trimStart());
     }
   }
+  const dataStr = dataLines.join("\n");
   let data: Record<string, unknown> | null = null;
   if (dataStr) {
     try {

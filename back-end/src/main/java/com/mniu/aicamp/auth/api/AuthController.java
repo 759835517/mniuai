@@ -1,7 +1,7 @@
 package com.mniu.aicamp.auth.api;
 
+import com.mniu.aicamp.auth.application.AuthService;
 import com.mniu.aicamp.shared.api.ApiResponse;
-import com.mniu.aicamp.user.application.PlatformService;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
@@ -14,24 +14,24 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/api/v1/auth")
 public class AuthController {
-    private final PlatformService service;
+    private final AuthService service;
 
-    public AuthController(PlatformService service) {
+    public AuthController(AuthService service) {
         this.service = service;
     }
 
     @PostMapping("/register")
-    ApiResponse<PlatformService.Tokens> register(@Valid @RequestBody RegisterRequest request) {
+    ApiResponse<AuthService.Tokens> register(@Valid @RequestBody RegisterRequest request) {
         return ApiResponse.ok(service.register(request.email(), request.password(), request.displayName()));
     }
 
     @PostMapping("/login")
-    ApiResponse<PlatformService.Tokens> login(@Valid @RequestBody LoginRequest request) {
+    ApiResponse<AuthService.Tokens> login(@Valid @RequestBody LoginRequest request) {
         return ApiResponse.ok(service.login(request.email(), request.password()));
     }
 
     @PostMapping("/refresh")
-    ApiResponse<PlatformService.Tokens> refresh(@Valid @RequestBody RefreshRequest request) {
+    ApiResponse<AuthService.Tokens> refresh(@Valid @RequestBody RefreshRequest request) {
         return ApiResponse.ok(service.refresh(request.refreshToken()));
     }
 }

@@ -22,8 +22,6 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
-import java.util.Map;
-
 @RestController
 @RequestMapping("/api/v1/roadmaps")
 public class RoadmapController {
@@ -76,9 +74,8 @@ public class RoadmapController {
     }
 
     @PatchMapping("/{roadmapId}/activate")
-    ApiResponse<Map<String, Object>> activateFrontend(@PathVariable Long roadmapId) {
-        Roadmap roadmap = service.activateRoadmap(CurrentUsers.require().id(), roadmapId);
-        return ApiResponse.ok(Map.of("id", String.valueOf(roadmap.id()), "isActive", roadmap.active()));
+    ApiResponse<Roadmap> activateFrontend(@PathVariable Long roadmapId) {
+        return ApiResponse.ok(service.activateRoadmap(CurrentUsers.require().id(), roadmapId));
     }
 
     @PostMapping("/{roadmapId}/regenerate")

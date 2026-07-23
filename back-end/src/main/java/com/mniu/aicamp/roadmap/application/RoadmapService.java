@@ -17,7 +17,9 @@ import com.mniu.aicamp.user.infrastructure.mapper.UserMapper;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Locale;
 import java.util.List;
 
 @Service
@@ -128,7 +130,7 @@ public class RoadmapService {
         Roadmap roadmap = getRoadmap(userId, roadmapId);
         long completed = roadmap.tasks().stream().filter(RoadmapTask::completed).count();
         int percent = roadmap.tasks().isEmpty() ? 0 : (int) Math.round(completed * 100.0 / roadmap.tasks().size());
-        return new RoadmapProgress(roadmap.id(), roadmap.tasks().size(), (int) completed, percent);
+        return new RoadmapProgress(roadmap.id(), roadmap.tasks().size(), (int) completed, percent, progressItems(roadmap));
     }
 
     @Transactional
@@ -172,6 +174,32 @@ public class RoadmapService {
             notificationService.addNotification(userId, "XP_GAINED", "Roadmap task completed");
         }
         return roadmapProgress(userId, roadmapId);
+    }
+
+    @Transactional
+    public RoadmapProgress applyLearningEvidence(Long userId, String evidenceType, String topic, int score) {
+        Roadmap roadmap;
+        try {
+            roadmap = activeRoadmap(userId);
+        } catch (BusinessException ex) {
+            return new RoadmapProgress(null, 0, 0, 0, List.of());
+        }
+        if (score < 80) {
+            return roadmapProgress(userId, roadmap.id());
+        }
+        List<RoadmapTask> matchedTasks = roadmap.tasks().stream()
+                .filter(task -> !task.completed())
+                .filter(task -> evidenceMatchesTask(evidenceType, topic, task.title()))
+                .toList();
+        for (RoadmapTask task : matchedTasks) {
+            roadmapTasks.update(null, Wrappers.<RoadmapTaskPO>lambdaUpdate()
+                    .eq(RoadmapTaskPO::getId, task.id())
+                    .eq(RoadmapTaskPO::getRoadmapId, roadmap.id())
+                    .set(RoadmapTaskPO::getCompleted, true));
+            growthService.addXp(userId, 30, "ROADMAP_TASK_AUTO_COMPLETED");
+            notificationService.addNotification(userId, "XP_GAINED", "Roadmap task auto-completed by " + evidenceType);
+        }
+        return roadmapProgress(userId, roadmap.id());
     }
 
     private void requireUser(Long userId) {
@@ -232,8 +260,58 @@ public class RoadmapService {
         return new RoadmapTask(po.getId(), valueOrZero(po.getWeek()), po.getTitle(), Boolean.TRUE.equals(po.getCompleted()));
     }
 
+    private List<RoadmapProgress.RoadmapProgressItem> progressItems(Roadmap roadmap) {
+        List<RoadmapProgress.RoadmapProgressItem> items = new ArrayList<>();
+        int currentWeek = Integer.MIN_VALUE;
+        int taskIndex = 0;
+        for (RoadmapTask task : roadmap.tasks()) {
+            if (task.week() != currentWeek) {
+                currentWeek = task.week();
+                taskIndex = 0;
+            }
+            items.add(new RoadmapProgress.RoadmapProgressItem(
+                    task.week(),
+                    taskIndex,
+                    task.completed() ? "COMPLETED" : "NOT_STARTED",
+                    task.completed() ? Instant.now() : null));
+            taskIndex++;
+        }
+        return items;
+    }
+
     private String blankTo(String value, String fallback) {
         return value == null || value.isBlank() ? fallback : value;
+    }
+
+    private boolean evidenceMatchesTask(String evidenceType, String topic, String taskTitle) {
+        String evidence = normalize(evidenceType + " " + topic);
+        String title = normalize(taskTitle);
+        if (evidence.isBlank() || title.isBlank()) {
+            return false;
+        }
+        if (containsAny(evidence, "review", "code", "repository", "repo", "审查", "代码", "仓库")
+                && containsAny(title, "review", "code", "repository", "repo", "test", "审查", "代码", "仓库", "测试")) {
+            return true;
+        }
+        for (String token : evidence.split("\\s+")) {
+            if (token.length() >= 3 && title.contains(token)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private boolean containsAny(String value, String... terms) {
+        for (String term : terms) {
+            if (value.contains(term.toLowerCase(Locale.ROOT))) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private String normalize(String value) {
+        return value == null ? "" : value.toLowerCase(Locale.ROOT).replaceAll("[^\\p{IsHan}\\p{Alnum}]+", " ").trim();
     }
 
     private int valueOrZero(Integer value) {

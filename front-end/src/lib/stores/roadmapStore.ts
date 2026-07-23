@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import type { LearningRoadmap, RoadmapProgress, RoadmapGenerateRequest, RoadmapTaskStatus } from "@/lib/types/roadmap";
-import { transformRoadmap } from "@/lib/types/roadmap";
+import { progressFromRoadmap, transformRoadmap } from "@/lib/types/roadmap";
 import type { ID } from "@/lib/types/api";
 import { roadmapApi } from "@/lib/api/roadmap";
 
@@ -32,7 +32,11 @@ export const useRoadmapStore = create<RoadmapState>((set, get) => ({
     set({ loading: true, error: null });
     try {
       const roadmap = await roadmapApi.getActive();
-      set({ activeRoadmap: roadmap ? transformRoadmap(roadmap) : null, loading: false });
+      set({
+        activeRoadmap: roadmap ? transformRoadmap(roadmap) : null,
+        progress: roadmap ? progressFromRoadmap(roadmap) : null,
+        loading: false,
+      });
       if (roadmap) {
         get().fetchProgress(roadmap.id);
       }
@@ -53,7 +57,11 @@ export const useRoadmapStore = create<RoadmapState>((set, get) => ({
     try {
       const roadmap = await roadmapApi.generate(payload);
       const transformed = transformRoadmap(roadmap);
-      set({ activeRoadmap: transformed, generating: false });
+      set({
+        activeRoadmap: transformed,
+        progress: progressFromRoadmap(roadmap),
+        generating: false,
+      });
       await get().fetchProgress(roadmap.id);
       return transformed;
     } catch (e) {
@@ -64,7 +72,7 @@ export const useRoadmapStore = create<RoadmapState>((set, get) => ({
 
   fetchProgress: async (roadmapId) => {
     try {
-      const raw = await roadmapApi.getProgress(roadmapId) as any;
+      const raw = await roadmapApi.getProgress(roadmapId) as Partial<RoadmapProgress>;
       // Backend returns { roadmapId, totalTasks, completedTasks, completionPercent }
       // Normalize to frontend format: completionRate (0-1), items from backend status map
       const progress: RoadmapProgress = {
@@ -101,9 +109,15 @@ export const useRoadmapStore = create<RoadmapState>((set, get) => ({
 
   activate: async (roadmapId) => {
     try {
-      await roadmapApi.activate(roadmapId);
-      set({ activeRoadmap: get().history.find(r => r.id === roadmapId) ?? get().activeRoadmap });
-      get().fetchHistory();
+      const roadmap = await roadmapApi.activate(roadmapId);
+      const activeRoadmap = transformRoadmap(roadmap);
+      set((state) => ({
+        activeRoadmap,
+        progress: progressFromRoadmap(roadmap),
+        history: state.history.map((item) => ({ ...item, isActive: item.id === roadmapId })),
+      }));
+      await get().fetchProgress(roadmapId);
+      await get().fetchHistory();
     } catch (e) {
       set({ error: (e as Error).message });
     }

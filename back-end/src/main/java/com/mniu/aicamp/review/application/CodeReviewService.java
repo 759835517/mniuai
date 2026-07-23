@@ -2,6 +2,7 @@ package com.mniu.aicamp.review.application;
 
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.mniu.aicamp.growth.application.GrowthService;
+import com.mniu.aicamp.roadmap.application.RoadmapService;
 import com.mniu.aicamp.review.infrastructure.RepositoryContentPort;
 import com.mniu.aicamp.review.infrastructure.mapper.CodeReviewMapper;
 import com.mniu.aicamp.review.infrastructure.po.CodeReviewPO;
@@ -24,19 +25,22 @@ public class CodeReviewService {
     private final UserMapper users;
     private final CodeReviewMapper reviews;
     private final GrowthService growthService;
+    private final RoadmapService roadmapService;
 
     public CodeReviewService(AiClientPort aiClient,
                              RepositoryContentPort repositoryContent,
                              SnowflakeIdGenerator idGenerator,
                              UserMapper users,
                              CodeReviewMapper reviews,
-                             GrowthService growthService) {
+                             GrowthService growthService,
+                             RoadmapService roadmapService) {
         this.aiClient = aiClient;
         this.repositoryContent = repositoryContent;
         this.idGenerator = idGenerator;
         this.users = users;
         this.reviews = reviews;
         this.growthService = growthService;
+        this.roadmapService = roadmapService;
     }
 
     @Transactional
@@ -55,6 +59,7 @@ public class CodeReviewService {
         review.setSuggestions(join(List.of("AI 审查：\n" + aiText)));
         reviews.insert(review);
         growthService.addXp(userId, 10, "CODE_REVIEW_CREATED");
+        syncRoadmapProgressFromReview(userId, language, 86);
         return toCodeReview(requireReview(id));
     }
 
@@ -80,6 +85,7 @@ public class CodeReviewService {
         )));
         reviews.insert(review);
         growthService.addXp(userId, 10, "CODE_REVIEW_CREATED");
+        syncRoadmapProgressFromReview(userId, snapshot.repository() + " " + language, 82);
         return toCodeReview(requireReview(id));
     }
 
@@ -136,5 +142,13 @@ public class CodeReviewService {
 
     private int valueOrZero(Integer value) {
         return value == null ? 0 : value;
+    }
+
+    private void syncRoadmapProgressFromReview(Long userId, String topic, int score) {
+        try {
+            roadmapService.applyLearningEvidence(userId, "CODE_REVIEW", topic, score);
+        } catch (BusinessException ignored) {
+            // Users may not have an active roadmap yet; code review should still succeed.
+        }
     }
 }

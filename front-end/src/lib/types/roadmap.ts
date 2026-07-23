@@ -4,11 +4,13 @@ import type { LearningGoal } from "./user";
 export type RoadmapTaskStatus = "NOT_STARTED" | "IN_PROGRESS" | "COMPLETED";
 
 export interface RoadmapTask {
+  id?: ID;
   title: string;
   description: string;
   estimatedHours: number;
   deliverable: string;
   resources?: string[];
+  completed?: boolean;
 }
 
 export interface RoadmapWeek {
@@ -77,6 +79,53 @@ export interface RoadmapProgress {
   completionPercent?: number;
 }
 
+export function progressFromRoadmap(roadmap: LearningRoadmapRaw | LearningRoadmap): RoadmapProgress {
+  const raw = "roadmap" in roadmap ? null : roadmap;
+  const frontend = transformRoadmap(roadmap);
+  const items: RoadmapProgressItem[] = [];
+  let totalTasks = 0;
+  let completedTasks = 0;
+
+  frontend.roadmap.weeks.forEach((week) => {
+    week.tasks.forEach((task, taskIndex) => {
+      totalTasks += 1;
+      if (task.completed) {
+        completedTasks += 1;
+      }
+      items.push({
+        weekNumber: week.week,
+        taskIndex,
+        status: task.completed ? "COMPLETED" : "NOT_STARTED",
+        completedAt: task.completed ? new Date().toISOString() : null,
+      });
+    });
+  });
+
+  if (raw && items.length === 0) {
+    raw.tasks?.forEach((task, index) => {
+      const completed = task.completed;
+      totalTasks += 1;
+      if (completed) {
+        completedTasks += 1;
+      }
+      items.push({
+        weekNumber: task.week,
+        taskIndex: index,
+        status: completed ? "COMPLETED" : "NOT_STARTED",
+        completedAt: completed ? new Date().toISOString() : null,
+      });
+    });
+  }
+
+  return {
+    roadmapId: frontend.id,
+    totalTasks,
+    completedTasks,
+    completionRate: totalTasks > 0 ? completedTasks / totalTasks : 0,
+    items,
+  };
+}
+
 /**
  * Transform backend flat roadmap to frontend LearningRoadmap.
  * Backend returns: { id, targetRole, weeklyHours, active, tasks: [{week, title, completed}], ... }
@@ -119,10 +168,12 @@ export function transformRoadmap(raw: LearningRoadmapRaw | LearningRoadmap): Lea
       theme: weekThemeMap[weekNum] || `第 ${weekNum} 周`,
       objectives: weekTasks.map((t) => t.title),
       tasks: weekTasks.map((t) => ({
+        id: t.id,
         title: t.title,
         description: "",
         estimatedHours: 0,
         deliverable: "",
+        completed: t.completed,
       })),
     }));
 

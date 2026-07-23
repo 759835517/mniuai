@@ -14,6 +14,7 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.options;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.asyncDispatch;
@@ -90,6 +91,13 @@ class ApiIntegrationTest extends IntegrationTestBase {
                 .andExpect(jsonPath("$.data.active").value(true));
         mvc.perform(put("/api/v1/roadmaps/{roadmapId}/active", activeRoadmapId).header(HttpHeaders.AUTHORIZATION, bearer(accessToken)))
                 .andExpect(status().isOk());
+        mvc.perform(patch("/api/v1/roadmaps/{roadmapId}/activate", firstRoadmapId).header(HttpHeaders.AUTHORIZATION, bearer(accessToken)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.id").value(firstRoadmapId))
+                .andExpect(jsonPath("$.data.active").value(true))
+                .andExpect(jsonPath("$.data.tasks").isArray());
+        mvc.perform(put("/api/v1/roadmaps/{roadmapId}/active", activeRoadmapId).header(HttpHeaders.AUTHORIZATION, bearer(accessToken)))
+                .andExpect(status().isOk());
         mvc.perform(put("/api/v1/roadmaps/tasks/{taskId}", taskId)
                         .header(HttpHeaders.AUTHORIZATION, bearer(accessToken))
                         .contentType(MediaType.APPLICATION_JSON)
@@ -107,7 +115,9 @@ class ApiIntegrationTest extends IntegrationTestBase {
         mvc.perform(get("/api/v1/roadmaps/{roadmapId}/progress", active.at("/data/id").asText())
                         .header(HttpHeaders.AUTHORIZATION, bearer(accessToken)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.completionPercent").value(100));
+                .andExpect(jsonPath("$.data.completionPercent").value(100))
+                .andExpect(jsonPath("$.data.items.length()").value(active.at("/data/tasks").size()))
+                .andExpect(jsonPath("$.data.items[0].status").value("COMPLETED"));
 
         mvc.perform(put("/api/v1/roadmaps/{roadmapId}/tasks/{taskId}", active.at("/data/id").asText(), activeTaskId)
                         .header(HttpHeaders.AUTHORIZATION, bearer(accessToken))

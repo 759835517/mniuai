@@ -113,6 +113,22 @@ class ApplicationServicesTest extends IntegrationTestBase {
     }
 
     @Test
+    void codeReviewCanAutoCompleteMatchingRoadmapTask() {
+        var tokens = authService.register("roadmap-review-auto@example.com", "password1", "Road Review");
+        var user = authService.authenticate(tokens.accessToken()).orElseThrow();
+        var roadmap = roadmaps.generateRoadmap(user.id(), "AI Engineer", 10, 2);
+
+        assertThat(roadmaps.roadmapProgress(user.id(), roadmap.id()).completedTasks()).isZero();
+
+        var review = codeReviews.reviewSnippet(user.id(), "java", "class A {}");
+        assertThat(review.score()).isGreaterThanOrEqualTo(80);
+
+        var progress = roadmaps.roadmapProgress(user.id(), roadmap.id());
+        assertThat(progress.completedTasks()).isGreaterThanOrEqualTo(1);
+        assertThat(progress.items().getFirst().status()).isEqualTo("COMPLETED");
+    }
+
+    @Test
     void redisBackedRateLimiterRejectsAboveLimit() {
         String key = "it-" + System.nanoTime();
 

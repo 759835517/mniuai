@@ -3,13 +3,14 @@ import type { LearningRoadmap, RoadmapGenerateRequest, RoadmapProgress } from "@
 import type { PageResponse, ID } from "@/lib/types/api";
 
 export const roadmapApi = {
-  generate(payload: RoadmapGenerateRequest): Promise<LearningRoadmap> {
-    return apiClient.post("/roadmaps/generate", {
+  async generate(payload: RoadmapGenerateRequest): Promise<LearningRoadmap> {
+    const roadmap = await apiClient.post<unknown, LearningRoadmap>("/roadmaps/generate", {
       currentSkills: payload.skills,
       learningGoal: payload.goal,
       availableHoursPerWeek: payload.hours,
       durationWeeks: payload.durationWeeks,
     });
+    return roadmap;
   },
   getActive(): Promise<LearningRoadmap | null> {
     return apiClient.get("/roadmaps/active");
@@ -20,7 +21,7 @@ export const roadmapApi = {
   regenerate(id: ID, overrides?: Record<string, unknown>): Promise<LearningRoadmap> {
     return apiClient.post(`/roadmaps/${id}/regenerate`, overrides);
   },
-  activate(id: ID): Promise<{ id: ID; isActive: boolean }> {
+  activate(id: ID): Promise<LearningRoadmap> {
     return apiClient.patch(`/roadmaps/${id}/activate`);
   },
   getProgress(id: ID): Promise<RoadmapProgress> {

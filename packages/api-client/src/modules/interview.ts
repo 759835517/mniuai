@@ -76,6 +76,12 @@ export interface MockInterviewAnswerRequest {
   thinkingSeconds?: number;
 }
 
+export interface InterviewStreamCallbacks {
+  onToken: (delta: string) => void;
+  onDone: () => void;
+  onError: (err: Error) => void;
+}
+
 // ===== API 模块 =====
 
 export function createInterviewApi(client: ApiClient) {
@@ -124,5 +130,67 @@ export function createInterviewApi(client: ApiClient) {
     // 能力画像
     getSkillProfile: () =>
       client.get<unknown[]>("/interview/skill-profile"),
+
+    // SSE 流式追问
+    streamInterview: (
+      id: string,
+      data: MockInterviewAnswerRequest,
+      callbacks: InterviewStreamCallbacks
+    ) => {
+      const baseURL = (client as unknown as { defaults: { baseURL: string } }).defaults?.baseURL ?? "";
+      const token = typeof window !== "undefined" ? localStorage.getItem("eng_token") : null;
+
+      return fetch(`${baseURL}/interview/mock/${id}/stream`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify(data),
+      }).then((response) => {
+        if (!response.ok || !response.body) {
+          callbacks.onError(new Error(`SSE request failed: ${response.status}`));
+          return;
+        }
+
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = "";
+
+        function read() {
+          reader.read().then(({ done, value }) => {
+            if (done) {
+              callbacks.onDone();
+              return;
+            }
+            buffer += decoder.decode(value, { stream: true });
+            const lines = buffer.split("\n");
+            buffer = lines.pop() || "";
+
+            for (const line of lines) {
+              if (line.startsWith("event:")) {
+                continue;
+              }
+              if (line.startsWith("data:")) {
+                try {
+                  const json = JSON.parse(line.slice(5).trim());
+                  if (json.delta) callbacks.onToken(json.delta);
+                  if (json.done) callbacks.onDone();
+                  if (json.error) callbacks.onError(new Error(json.message || json.error));
+                } catch {
+                  // ignore parse errors
+                }
+              }
+            }
+            read();
+          }).catch((err) => {
+            callbacks.onError(err instanceof Error ? err : new Error(String(err)));
+          });
+        }
+        read();
+      }).catch((err) => {
+        callbacks.onError(err instanceof Error ? err : new Error(String(err)));
+      });
+    },
   };
 }

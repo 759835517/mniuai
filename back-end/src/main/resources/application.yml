@@ -135,6 +135,8 @@ app:
     base-url: ${JUDGE0_BASE_URL:http://localhost:2358}
     auth-token: ${JUDGE0_AUTH_TOKEN:}
     timeout: ${JUDGE0_TIMEOUT:30s}
+  sandbox:
+    enabled: ${SANDBOX_ENABLED:false}
   rag:
     enabled: ${RAG_ENABLED:false}
     chunk-size: 500

@@ -1,4 +1,4 @@
-import { createApiClient, createAuthApi, createEngineerApi } from "@mniuai/api-client";
+import { createApiClient, createAuthApi, createEngineerApi, createInterviewApi } from "@mniuai/api-client";
 
 // 程序员端 API 基础 URL
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080/api/v1";
@@ -14,6 +14,9 @@ export const authApi = createAuthApi(engineerClient);
 
 // 程序员端 API
 export const engineerApi = createEngineerApi(engineerClient);
+
+// 面试 API
+export const interviewApi = createInterviewApi(engineerClient);
 
 // Token 管理
 export function setTokens(accessToken: string, refreshToken: string) {

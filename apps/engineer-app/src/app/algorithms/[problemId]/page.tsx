@@ -1,7 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import Link from "next/link";
+import { useParams } from "next/navigation";
+import { CodeEditor } from "@/components/code-editor/CodeEditor";
+import { engineerApi } from "@/lib/api";
 
 const HINTS = [
   { level: 1, label: "算法类型", text: "这道题可以用「哈希表」在 O(n) 时间内解决。" },
@@ -12,34 +15,102 @@ const HINTS = [
 
 const LANGS = ["Java", "Python", "JavaScript", "Go"];
 
+const LANGUAGE_ID_MAP: Record<string, number> = {
+  Java: 62,
+  Python: 71,
+  JavaScript: 63,
+  Go: 60,
+};
+
+const DEFAULT_CODE: Record<string, string> = {
+  Java: "class Solution {\n    public int[] twoSum(int[] nums, int target) {\n        // 在此作答\n        return new int[]{};\n    }\n}",
+  Python: "class Solution:\n    def twoSum(self, nums: List[int], target: int) -> List[int]:\n        # 在此作答\n        return []",
+  JavaScript: "function twoSum(nums, target) {\n    // 在此作答\n    return [];\n}",
+  Go: "func twoSum(nums []int, target int) []int {\n    // 在此作答\n    return nil\n}",
+};
+
 export default function AlgorithmProblemPage() {
-  const [code, setCode] = useState(
-    "class Solution {\n    public int[] twoSum(int[] nums, int target) {\n        // 在此作答\n        return new int[]{};\n    }\n}"
-  );
+  const params = useParams();
+  const problemId = params.problemId as string;
+
+  const [code, setCode] = useState(DEFAULT_CODE.Java);
   const [lang, setLang] = useState("Java");
   const [hintLevel, setHintLevel] = useState(0);
   const [running, setRunning] = useState(false);
+  const [result, setResult] = useState<{
+    status: string;
+    output: string;
+    timeMs?: number;
+    memoryKb?: number;
+  } | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const [tab, setTab] = useState<"desc" | "hint">("desc");
 
-  const run = () => {
+  const handleLangChange = useCallback((newLang: string) => {
+    setLang(newLang);
+    setCode(DEFAULT_CODE[newLang] || DEFAULT_CODE.Java);
+  }, []);
+
+  const run = useCallback(async () => {
     setRunning(true);
-    setTimeout(() => setRunning(false), 1200);
-  };
+    setResult(null);
+    setError(null);
+    try {
+      const execResult = await engineerApi.executeCode({
+        languageId: LANGUAGE_ID_MAP[lang],
+        sourceCode: code,
+      });
+      setResult({
+        status: execResult.status,
+        output: execResult.actualOutput,
+        timeMs: execResult.timeMs,
+        memoryKb: execResult.memoryKb,
+      });
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "执行失败，请稍后重试";
+      setError(message);
+    } finally {
+      setRunning(false);
+    }
+  }, [code, lang]);
+
+  const submit = useCallback(async () => {
+    setRunning(true);
+    setResult(null);
+    setError(null);
+    try {
+      const submitResult = await engineerApi.submitAlgorithm(problemId, {
+        problemId,
+        code,
+        language: lang,
+      });
+      setResult({
+        status: submitResult.passed ? "ACCEPTED" : "WRONG_ANSWER",
+        output: submitResult.feedback,
+      });
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "提交失败，请稍后重试";
+      setError(message);
+    } finally {
+      setRunning(false);
+    }
+  }, [code, lang, problemId]);
 
   return (
     <div className="pt-16 h-screen flex flex-col bg-gray-900">
+      {/* Top Bar */}
       <div className="flex items-center justify-between px-4 py-3 bg-gray-800 text-white border-b border-gray-700">
         <div className="flex items-center gap-3">
           <Link href="/algorithms" className="text-gray-400 hover:text-white text-sm">
             ← 题库
           </Link>
-          <span className="font-semibold text-sm">1. 两数之和</span>
+          <span className="font-semibold text-sm">{problemId}. 算法题</span>
           <span className="text-xs px-2 py-0.5 rounded bg-green-600">简单</span>
         </div>
         <div className="flex items-center gap-2">
           <select
             value={lang}
-            onChange={(e) => setLang(e.target.value)}
+            onChange={(e) => handleLangChange(e.target.value)}
             className="bg-gray-700 text-sm rounded-lg px-2 py-1.5 outline-none"
           >
             {LANGS.map((l) => (
@@ -53,13 +124,19 @@ export default function AlgorithmProblemPage() {
           >
             {running ? "执行中…" : "▶ 运行"}
           </button>
-          <button className="text-sm bg-green-600 hover:bg-green-700 px-4 py-1.5 rounded-lg">
+          <button
+            onClick={submit}
+            disabled={running}
+            className="text-sm bg-green-600 hover:bg-green-700 px-4 py-1.5 rounded-lg disabled:opacity-50"
+          >
             提交
           </button>
         </div>
       </div>
 
+      {/* Main Content */}
       <div className="flex-1 grid grid-cols-1 lg:grid-cols-2 overflow-hidden">
+        {/* Left: Description / Hints */}
         <div className="flex flex-col border-r border-gray-700 bg-gray-800">
           <div className="flex border-b border-gray-700 text-sm">
             <button
@@ -113,21 +190,35 @@ export default function AlgorithmProblemPage() {
           </div>
         </div>
 
+        {/* Right: Code Editor + Results */}
         <div className="flex flex-col">
           <div className="px-4 py-2 bg-gray-800 text-xs text-gray-400 border-b border-gray-700">
             Solution.{lang.toLowerCase()}
           </div>
-          <textarea
-            value={code}
-            onChange={(e) => setCode(e.target.value)}
-            spellCheck={false}
-            className="flex-1 bg-gray-900 text-gray-100 font-mono text-sm p-4 resize-none outline-none leading-relaxed"
-          />
-          <div className="h-36 bg-black text-gray-300 font-mono text-xs p-4 overflow-auto border-t border-gray-700">
+
+          {/* Monaco Editor */}
+          <div className="flex-1 min-h-0">
+            <CodeEditor value={code} onChange={setCode} language={lang} />
+          </div>
+
+          {/* Execution Result Panel */}
+          <div className="h-40 bg-black text-gray-300 font-mono text-xs p-4 overflow-auto border-t border-gray-700">
             <div className="text-gray-500 mb-1">// 测试结果</div>
-            {running ? (
-              <div className="text-yellow-400">运行测试用例中…</div>
-            ) : (
+            {running && <div className="text-yellow-400">运行中…</div>}
+            {error && <div className="text-red-400">❌ {error}</div>}
+            {result && !running && (
+              <div className="space-y-1">
+                <div className={result.status === "ACCEPTED" ? "text-green-400" : "text-red-400"}>
+                  状态: {result.status} {result.status === "ACCEPTED" ? "✅" : "❌"}
+                </div>
+                {result.timeMs != null && <div>⏱ {result.timeMs.toFixed(0)} ms</div>}
+                {result.memoryKb != null && <div>💾 {result.memoryKb} KB</div>}
+                {result.output && (
+                  <pre className="whitespace-pre-wrap mt-2 text-gray-400">{result.output}</pre>
+                )}
+              </div>
+            )}
+            {!result && !running && !error && (
               <div className="text-gray-500">点击「运行」查看测试用例结果</div>
             )}
           </div>

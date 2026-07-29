@@ -87,6 +87,23 @@ export interface AlgorithmSubmitResultDTO {
   createdAt: string;
 }
 
+export interface CodeExecutionRequest {
+  languageId: number;
+  sourceCode: string;
+  stdin?: string;
+  expectedOutput?: string;
+  timeLimitSec?: number;
+  memoryLimitMb?: number;
+}
+
+export interface CodeExecutionResultDTO {
+  submissionId: string;
+  status: string;
+  actualOutput: string;
+  timeMs?: number;
+  memoryKb?: number;
+}
+
 export interface HintRequest {
   problemId: string;
   code?: string;
@@ -240,5 +257,9 @@ export function createEngineerApi(client: ApiClient) {
     // 申请退款
     applyGuarantee: () =>
       client.post<string>("/engineer/guarantee/apply"),
+
+    // 沙盒执行代码
+    executeCode: (data: CodeExecutionRequest) =>
+      client.post<CodeExecutionResultDTO>("/sandbox/execute", data),
   };
 }

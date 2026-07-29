@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { engineerApi } from "@/lib/api";
+import ArchitectureWhiteboard from "@/components/whiteboard/ArchitectureWhiteboard";
 
 const DEFAULT_STEPS = [
   { id: "clarify", name: "需求澄清", hint: "AI 会追问：用户规模？QPS？读写比？一致性要求？" },
@@ -120,9 +121,9 @@ export default function SystemDesignDetailPage() {
               <p className="text-sm text-gray-500 mb-4">{steps[activeStep].hint}</p>
 
               {steps[activeStep].id === "sketch" ? (
-                <div className="border-2 border-dashed border-gray-300 rounded-xl h-80 flex items-center justify-center text-gray-400">
-                  🎨 Excalidraw 白板（待接入）
-                </div>
+                <Suspense fallback={<div className="border-2 border-dashed border-gray-300 rounded-xl h-96 flex items-center justify-center text-gray-400">加载白板中…</div>}>
+                  <ArchitectureWhiteboard topicId={topicId} />
+                </Suspense>
               ) : (
                 <textarea
                   value={notes[steps[activeStep].id] || ""}

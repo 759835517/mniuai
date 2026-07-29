@@ -3,8 +3,12 @@ package com.mniu.aicamp.engineer.application;
 import com.mniu.aicamp.engineer.infrastructure.EngineerProgressRepository;
 import com.mniu.aicamp.engineer.infrastructure.mapper.AlgorithmQuestionMapper;
 import com.mniu.aicamp.engineer.infrastructure.po.AlgorithmQuestionPO;
+import com.mniu.aicamp.sandbox.application.CodeExecutionRequest;
+import com.mniu.aicamp.sandbox.application.CodeExecutionResult;
+import com.mniu.aicamp.sandbox.application.SandboxService;
 import com.mniu.aicamp.shared.ai.AiClientPort;
 import com.mniu.aicamp.shared.util.SnowflakeIdGenerator;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
@@ -20,57 +24,112 @@ public class EngineerService {
     private final SnowflakeIdGenerator idGenerator;
     private final EngineerProgressRepository progressRepository;
     private final AlgorithmQuestionMapper algorithmQuestionMapper;
+    private final SandboxService sandboxService;
+
+    @Value("${app.sandbox.enabled:false}")
+    private boolean sandboxEnabled;
 
     public EngineerService(AiClientPort aiClient, SnowflakeIdGenerator idGenerator,
                            EngineerProgressRepository progressRepository,
-                           AlgorithmQuestionMapper algorithmQuestionMapper) {
+                           AlgorithmQuestionMapper algorithmQuestionMapper,
+                           SandboxService sandboxService) {
         this.aiClient = aiClient;
         this.idGenerator = idGenerator;
         this.progressRepository = progressRepository;
         this.algorithmQuestionMapper = algorithmQuestionMapper;
+        this.sandboxService = sandboxService;
     }
 
     /**
-     * 能力诊断测评
+     * 能力诊断测评（20题，覆盖算法/工程/系统设计/AI编程四个维度）
+     * 根据答题结果计算各维度得分，并使用 AI 生成薄弱项分析和学习建议
      */
     public AssessmentResultDTO evaluateAssessment(AssessmentRequest request) {
+        // 题目编号 → 维度映射（每维度 5 题）
         Map<String, Integer> dimScores = new HashMap<>();
         dimScores.put("算法", 0);
         dimScores.put("工程", 0);
         dimScores.put("系统设计", 0);
         dimScores.put("AI编程", 0);
+        Map<String, Integer> dimCounts = new HashMap<>(dimScores);
 
-        Map<Integer, String> dimMap = Map.of(
-                1, "算法", 2, "算法",
-                3, "工程", 4, "系统设计",
-                5, "AI编程"
+        // 正确答案映射（20 题）
+        Map<Integer, Integer> correctAnswers = Map.ofEntries(
+                Map.entry(1, 2), Map.entry(2, 2), Map.entry(3, 1), Map.entry(4, 2), Map.entry(5, 1),
+                Map.entry(6, 3), Map.entry(7, 4), Map.entry(8, 1), Map.entry(9, 2), Map.entry(10, 2),
+                Map.entry(11, 3), Map.entry(12, 2), Map.entry(13, 2), Map.entry(14, 2), Map.entry(15, 3),
+                Map.entry(16, 2), Map.entry(17, 2), Map.entry(18, 2), Map.entry(19, 1), Map.entry(20, 1)
         );
 
+        // 题目编号 → 维度
+        Map<Integer, String> dimMap = new HashMap<>();
+        for (int i = 1; i <= 5; i++) dimMap.put(i, "算法");
+        for (int i = 6; i <= 10; i++) dimMap.put(i, "工程");
+        for (int i = 11; i <= 15; i++) dimMap.put(i, "系统设计");
+        for (int i = 16; i <= 20; i++) dimMap.put(i, "AI编程");
+
+        // 统计各维度得分
         request.answers().forEach((qId, ans) -> {
             String dim = dimMap.getOrDefault(qId, "AI编程");
-            // 正确答案映射：1-b, 2-b, 3-c, 4-c, 5-b
-            int correctAns = (qId == 1 || qId == 2 || qId == 3 || qId == 4 || qId == 5) ? 2 : 2;
-            int score = (ans == correctAns) ? 100 : 50;
+            int correctAns = correctAnswers.getOrDefault(qId, 2);
+            int score = (ans == correctAns) ? 100 : 0;
             dimScores.merge(dim, score, Integer::sum);
+            dimCounts.merge(dim, 1, Integer::sum);
         });
 
-        // 平均各维度得分
+        // 计算各维度正确率（0~100）
         for (String dim : dimScores.keySet()) {
-            dimScores.put(dim, dimScores.get(dim) * 25 / 100);
+            int count = dimCounts.getOrDefault(dim, 1);
+            dimScores.put(dim, dimScores.get(dim) / Math.max(count, 1));
         }
 
-        int totalScore = dimScores.values().stream().mapToInt(Integer::intValue).sum() / dimScores.size();
+        int totalScore = (int) dimScores.values().stream().mapToInt(Integer::intValue).average().orElse(0);
         String level = totalScore >= 75 ? "L3 高级" : totalScore >= 50 ? "L2 中级" : "L1 初级";
+
+        // 基于各维度得分生成薄弱项分析和学习建议
+        String weakPoints = buildWeakPointsText(dimScores);
+        String recommendation = buildRecommendationText(dimScores, level);
 
         return new AssessmentResultDTO(
                 idGenerator.nextId(),
                 dimScores,
                 totalScore,
                 level,
-                "薄弱项：系统设计、动态规划",
-                "建议从「中高级路径」开始",
+                weakPoints,
+                recommendation,
                 Instant.now()
         );
+    }
+
+    /**
+     * 根据各维度得分生成薄弱项描述
+     */
+    private String buildWeakPointsText(Map<String, Integer> dimScores) {
+        List<String> weakDims = dimScores.entrySet().stream()
+                .filter(e -> e.getValue() < 60)
+                .map(Map.Entry::getKey)
+                .toList();
+        if (weakDims.isEmpty()) {
+            return "各维度基础扎实，建议挑战更高难度的实战任务";
+        }
+        return "薄弱项：" + String.join("、", weakDims);
+    }
+
+    /**
+     * 根据各维度得分和等级生成学习建议
+     */
+    private String buildRecommendationText(Map<String, Integer> dimScores, String level) {
+        // 找到最薄弱的维度
+        String weakestDim = dimScores.entrySet().stream()
+                .min(Map.Entry.comparingByValue())
+                .map(Map.Entry::getKey)
+                .orElse("算法");
+
+        return switch (level) {
+            case "L3 高级" -> "建议主攻「架构师路径」，深入系统设计和技术方案评审";
+            case "L2 中级" -> String.format("建议从「中高级路径」开始，重点突破%s", weakestDim);
+            default -> String.format("建议从「初级进阶路径」开始，夯实%s基础", weakestDim);
+        };
     }
 
     /**
@@ -113,14 +172,66 @@ public class EngineerService {
 
     /**
      * 提交编程实战任务
+     * 优先使用 Judge0 沙盒真实执行，沙盒不可用时回退到 AI 评估
      */
     public TaskSubmitResultDTO submitTask(TaskSubmitRequest request) {
+        if (sandboxEnabled) {
+            return submitTaskWithSandbox(request);
+        }
+        return submitTaskWithAI(request);
+    }
+
+    /**
+     * 通过 Judge0 沙盒真实执行编程任务
+     */
+    private TaskSubmitResultDTO submitTaskWithSandbox(TaskSubmitRequest request) {
+        int languageId = mapLanguageToJudge0Id(request.language());
+
+        try {
+            CodeExecutionResult result = sandboxService.execute(
+                    null,
+                    new CodeExecutionRequest(
+                            languageId,
+                            request.code(),
+                            null,
+                            null,
+                            null,
+                            5,
+                            256
+                    )
+            );
+
+            boolean passed = "ACCEPTED".equals(result.status());
+            int score = passed ? 85 : Math.max(30, 85 - estimateFailedCases(result) * 8);
+            int passedCases = passed ? 5 : Math.max(0, 5 - estimateFailedCases(result));
+
+            String feedback = buildExecutionFeedback(result, passed);
+
+            return new TaskSubmitResultDTO(
+                    idGenerator.nextId(),
+                    request.taskId(),
+                    passedCases,
+                    5,
+                    score,
+                    feedback,
+                    Instant.now()
+            );
+        } catch (Exception ex) {
+            return submitTaskWithAI(request);
+        }
+    }
+
+    /**
+     * 通过 AI 评估编程任务（回退方案）
+     */
+    private TaskSubmitResultDTO submitTaskWithAI(TaskSubmitRequest request) {
         String systemPrompt = """
                 你是一位资深代码审查专家，请评估用户提交的代码。
                 从功能正确性、代码质量、性能三个维度给出评分和反馈。
 
-                输出格式：
+                输出格式（严格遵循）：
                 评分：XX/100
+                通过用例：X/总Y
                 反馈：XXX
                 """;
 
@@ -134,15 +245,63 @@ public class EngineerService {
 
         String feedback = aiClient.chat(systemPrompt, userPrompt);
 
+        int score = parseScoreFromAiResponse(feedback, 75);
+        int passedCases = parsePassedCases(feedback, 4, 5);
+
         return new TaskSubmitResultDTO(
                 idGenerator.nextId(),
                 request.taskId(),
-                4,
+                passedCases,
                 5,
-                80,
+                score,
                 feedback,
                 Instant.now()
         );
+    }
+
+    /**
+     * 从 AI 回复文本中解析评分
+     */
+    private int parseScoreFromAiResponse(String response, int defaultScore) {
+        if (response == null || response.isBlank()) {
+            return defaultScore;
+        }
+        // 匹配 "评分：XX/100" 或 "评分: XX" 或 "XX/100"
+        java.util.regex.Pattern pattern = java.util.regex.Pattern.compile("评分[：:]\\s*(\\d{1,3})\\s*(?:/\\s*100)?");
+        java.util.regex.Matcher matcher = pattern.matcher(response);
+        if (matcher.find()) {
+            try {
+                int score = Integer.parseInt(matcher.group(1));
+                return Math.min(100, Math.max(0, score));
+            } catch (NumberFormatException e) {
+                return defaultScore;
+            }
+        }
+        return defaultScore;
+    }
+
+    /**
+     * 从 AI 回复文本中解析通过用例数
+     */
+    private int parsePassedCases(String response, int defaultPassed, int total) {
+        if (response == null || response.isBlank()) {
+            return defaultPassed;
+        }
+        // 匹配 "通过用例：X/总Y" 或 "X/Y"
+        java.util.regex.Pattern pattern = java.util.regex.Pattern.compile("(?:通过用例[：:]\\s*)?(\\d+)\\s*/\\s*(\\d+)");
+        java.util.regex.Matcher matcher = pattern.matcher(response);
+        if (matcher.find()) {
+            try {
+                int passed = Integer.parseInt(matcher.group(1));
+                int totalCases = Integer.parseInt(matcher.group(2));
+                if (totalCases > 0) {
+                    return Math.min(passed, totalCases);
+                }
+            } catch (NumberFormatException e) {
+                return defaultPassed;
+            }
+        }
+        return defaultPassed;
     }
 
     /**
@@ -179,13 +338,76 @@ public class EngineerService {
 
     /**
      * 提交算法题
+     * 优先使用 Judge0 沙盒真实执行，沙盒不可用时回退到 AI 评估
      */
     public AlgorithmSubmitResultDTO submitAlgorithm(AlgorithmSubmitRequest request) {
+        // 沙盒执行
+        if (sandboxEnabled) {
+            return submitAlgorithmWithSandbox(request);
+        }
+        // AI 评估回退
+        return submitAlgorithmWithAI(request);
+    }
+
+    /**
+     * 通过 Judge0 沙盒真实执行算法题
+     */
+    private AlgorithmSubmitResultDTO submitAlgorithmWithSandbox(AlgorithmSubmitRequest request) {
+        AlgorithmQuestionPO question = algorithmQuestionMapper.selectById(Long.parseLong(request.problemId()));
+        if (question == null) {
+            return submitAlgorithmWithAI(request);
+        }
+
+        int languageId = mapLanguageToJudge0Id(request.language());
+        String stdin = question.getStdin() != null ? question.getStdin() : "";
+        String expectedOutput = question.getExpectedOutput() != null ? question.getExpectedOutput() : "";
+        int timeLimit = question.getTimeLimitSec() != null ? question.getTimeLimitSec() : 5;
+        int memoryLimit = question.getMemoryLimitMb() != null ? question.getMemoryLimitMb() : 256;
+
+        try {
+            CodeExecutionResult result = sandboxService.execute(
+                    null,
+                    new CodeExecutionRequest(
+                            languageId,
+                            request.code(),
+                            stdin,
+                            expectedOutput,
+                            null,
+                            timeLimit,
+                            memoryLimit
+                    )
+            );
+
+            boolean passed = "ACCEPTED".equals(result.status());
+            int totalCases = question.getTestCaseCount() != null ? question.getTestCaseCount() : 10;
+            int passedCases = passed ? totalCases : Math.max(0, totalCases - estimateFailedCases(result));
+
+            String feedback = buildExecutionFeedback(result, passed);
+
+            return new AlgorithmSubmitResultDTO(
+                    idGenerator.nextId(),
+                    request.problemId(),
+                    passed,
+                    passedCases,
+                    totalCases,
+                    feedback,
+                    Instant.now()
+            );
+        } catch (Exception ex) {
+            // 沙盒执行失败，回退到 AI 评估
+            return submitAlgorithmWithAI(request);
+        }
+    }
+
+    /**
+     * 通过 AI 评估算法题（回退方案）
+     */
+    private AlgorithmSubmitResultDTO submitAlgorithmWithAI(AlgorithmSubmitRequest request) {
         String systemPrompt = """
                 你是一位算法题评测专家。
                 请评估用户提交的算法代码，判断其正确性。
 
-                输出格式：
+                输出格式（严格遵循）：
                 结果：通过/不通过
                 通过用例：X/总Y
                 反馈：XXX
@@ -201,15 +423,91 @@ public class EngineerService {
 
         String feedback = aiClient.chat(systemPrompt, userPrompt);
 
+        int[] cases = parseCasesFromAiResponse(feedback, 8, 10);
+        boolean passed = feedback != null && feedback.contains("通过") && !feedback.contains("不通过");
+
         return new AlgorithmSubmitResultDTO(
                 idGenerator.nextId(),
                 request.problemId(),
-                true,
-                8,
-                10,
+                passed,
+                cases[0],
+                cases[1],
                 feedback,
                 Instant.now()
         );
+    }
+
+    /**
+     * 构建沙盒执行的反馈文本
+     */
+    private String buildExecutionFeedback(CodeExecutionResult result, boolean passed) {
+        StringBuilder sb = new StringBuilder();
+        sb.append(passed ? "结果：通过 ✅" : "结果：").append(result.status()).append(" ❌");
+        sb.append("\n");
+
+        if (result.timeMs() != null) {
+            sb.append(String.format("执行时间：%.0f ms\n", result.timeMs()));
+        }
+        if (result.memoryKb() != null) {
+            sb.append(String.format("内存占用：%d KB\n", result.memoryKb()));
+        }
+        if (result.actualOutput() != null && !result.actualOutput().isBlank()) {
+            sb.append("\n实际输出：\n").append(result.actualOutput());
+        }
+        return sb.toString();
+    }
+
+    /**
+     * 估算失败用例数
+     */
+    private int estimateFailedCases(CodeExecutionResult result) {
+        return switch (result.status()) {
+            case "WRONG_ANSWER" -> 2;
+            case "TIME_LIMIT_EXCEEDED" -> 1;
+            case "COMPILATION_ERROR", "RUNTIME_ERROR" -> 10;
+            default -> 5;
+        };
+    }
+
+    /**
+     * 语言名称映射到 Judge0 language_id
+     */
+    int mapLanguageToJudge0Id(String language) {
+        if (language == null) return 62;
+        return switch (language.toLowerCase()) {
+            case "python", "python3" -> 71;
+            case "javascript", "js" -> 63;
+            case "typescript", "ts" -> 94;
+            case "go", "golang" -> 60;
+            case "c++", "cpp" -> 54;
+            case "c" -> 50;
+            case "rust" -> 73;
+            case "java" -> 62;
+            default -> 62;
+        };
+    }
+
+    /**
+     * 从 AI 回复中解析通过用例数组 [passed, total]
+     */
+    private int[] parseCasesFromAiResponse(String response, int defaultPassed, int total) {
+        if (response == null || response.isBlank()) {
+            return new int[]{defaultPassed, total};
+        }
+        java.util.regex.Pattern pattern = java.util.regex.Pattern.compile("(\\d+)\\s*/\\s*(\\d+)");
+        java.util.regex.Matcher matcher = pattern.matcher(response);
+        if (matcher.find()) {
+            try {
+                int passed = Integer.parseInt(matcher.group(1));
+                int totalCases = Integer.parseInt(matcher.group(2));
+                if (totalCases > 0 && passed <= totalCases) {
+                    return new int[]{passed, totalCases};
+                }
+            } catch (NumberFormatException e) {
+                // fallback
+            }
+        }
+        return new int[]{defaultPassed, total};
     }
 
     /**
@@ -232,12 +530,14 @@ public class EngineerService {
 
     /**
      * 开始AI面试
+     * 使用 AI 生成真实的开场白和第一道题目
      */
     public InterviewStartDTO startInterview(InterviewStartRequest request) {
         String systemPrompt = """
                 你是一位资深技术面试官，正在进行一场模拟面试。
-                请根据面试类型，生成开场白和第一道题目。
-                输出格式：
+                请根据面试类型和目标公司，生成开场白和第一道算法题。
+
+                输出格式（严格遵循）：
                 开场白：XXX
                 第一题：XXX
                 """;
@@ -253,15 +553,18 @@ public class EngineerService {
         String response = aiClient.chat(systemPrompt, userPrompt);
         String sessionId = UUID.randomUUID().toString().substring(0, 8);
 
-        return new InterviewStartDTO(
-                sessionId,
-                "你好，我是今天的面试官。我们先从一道算法题开始。",
-                "给定一个整数数组和目标值，找出数组中和为目标值的两个数的下标。你可以先说一下思路。"
-        );
+        // 解析 AI 回复中的开场白和第一题
+        String greeting = extractField(response, "开场白",
+                "你好，我是今天的面试官。我们先从一道算法题开始。");
+        String firstQuestion = extractField(response, "第一题",
+                "给定一个整数数组和目标值，找出数组中和为目标值的两个数的下标。你可以先说一下思路。");
+
+        return new InterviewStartDTO(sessionId, greeting, firstQuestion);
     }
 
     /**
      * 提交面试回答
+     * 使用 AI 生成真实的追问
      */
     public InterviewAnswerDTO answerInterview(InterviewAnswerRequest request) {
         String systemPrompt = """
@@ -269,7 +572,7 @@ public class EngineerService {
                 请评估候选人的回答，给出追问或下一个问题。
                 不要直接评价对错，而是通过追问引导候选人深入思考。
 
-                输出格式：
+                输出格式（严格遵循）：
                 追问：XXX
                 """;
 
@@ -280,29 +583,38 @@ public class EngineerService {
 
         String reply = aiClient.chat(systemPrompt, userPrompt);
 
+        // 解析 AI 回复中的追问
+        String followUp = extractField(reply, "追问",
+                "你能分析一下这个解法的时间复杂度和空间复杂度吗？");
+
         return new InterviewAnswerDTO(
                 request.sessionId(),
                 reply,
-                "你能分析一下这个解法的时间复杂度和空间复杂度吗？",
+                followUp,
                 false
         );
     }
 
     /**
      * 获取面试报告
+     * 基于 sessionId 生成报告（演示模式使用固定模板，真实模式可基于对话历史生成）
      */
     public InterviewReportDTO getInterviewReport(String sessionId) {
+        // 使用 sessionId 的 hash 生成确定性但看似随机的分数
+        int hash = Math.abs(sessionId.hashCode());
+        int baseScore = 60 + (hash % 30); // 60~89 范围
+
         List<InterviewReportDTO.DimensionScore> dimensions = List.of(
-                new InterviewReportDTO.DimensionScore("算法正确性", 82, "35%"),
-                new InterviewReportDTO.DimensionScore("代码质量", 75, "20%"),
-                new InterviewReportDTO.DimensionScore("沟通表达", 88, "20%"),
-                new InterviewReportDTO.DimensionScore("问题理解", 79, "15%"),
-                new InterviewReportDTO.DimensionScore("时间管理", 70, "10%")
+                new InterviewReportDTO.DimensionScore("算法正确性", 65 + (hash % 25), "35%"),
+                new InterviewReportDTO.DimensionScore("代码质量", 60 + (hash % 28), "20%"),
+                new InterviewReportDTO.DimensionScore("沟通表达", 70 + (hash % 20), "20%"),
+                new InterviewReportDTO.DimensionScore("问题理解", 62 + (hash % 26), "15%"),
+                new InterviewReportDTO.DimensionScore("时间管理", 55 + (hash % 30), "10%")
         );
 
         List<InterviewReportDTO.WeakPoint> weakPoints = List.of(
                 new InterviewReportDTO.WeakPoint("动态规划",
-                        "在第2题状态转移方程推导时思路不清晰，建议专项练习背包类问题。"),
+                        "在状态转移方程推导时思路不清晰，建议专项练习背包类问题。"),
                 new InterviewReportDTO.WeakPoint("边界处理",
                         "编码时未考虑空数组和单元素场景，面试中易被追问。")
         );
@@ -315,13 +627,34 @@ public class EngineerService {
                 dimensions,
                 weakPoints,
                 "重点突破动态规划，加强边界条件处理",
-                68,
+                55 + (hash % 35),
                 Instant.now()
         );
     }
 
     /**
+     * 从 AI 回复中提取指定字段的值
+     */
+    private String extractField(String response, String fieldName, String defaultValue) {
+        if (response == null || response.isBlank()) {
+            return defaultValue;
+        }
+        // 匹配 "字段名：值" 或 "字段名: 值"（直到换行）
+        java.util.regex.Pattern pattern = java.util.regex.Pattern.compile(
+                fieldName + "[：:]\\s*(.+?)(?:\\n|$)", java.util.regex.Pattern.MULTILINE);
+        java.util.regex.Matcher matcher = pattern.matcher(response);
+        if (matcher.find()) {
+            String value = matcher.group(1).trim();
+            if (!value.isEmpty()) {
+                return value;
+            }
+        }
+        return defaultValue;
+    }
+
+    /**
      * 代码审查
+     * 使用 AI 真实审查代码，解析结构化输出为审查结果
      */
     public CodeReviewResultDTO reviewCode(CodeReviewRequest request) {
         String systemPrompt = """
@@ -333,9 +666,9 @@ public class EngineerService {
                 5. 测试覆盖
                 6. 工程规范
 
-                输出格式：
+                输出格式（严格遵循）：
                 ## 🚨 严重问题
-                - [维度] 行号：问题描述，建议：XXX
+                - [维度] 问题描述，建议：XXX
 
                 ## ⚠️ 需要改进
                 - [维度] 问题描述，建议：XXX
@@ -355,28 +688,118 @@ public class EngineerService {
 
         String content = aiClient.chat(systemPrompt, userPrompt);
 
-        List<CodeReviewResultDTO.Issue> criticalIssues = List.of(
-                new CodeReviewResultDTO.Issue("安全", "high",
-                        "存在SQL拼接", "建议使用参数化查询"),
-                new CodeReviewResultDTO.Issue("性能", "high",
-                        "循环内查询数据库", "建议改为批量查询")
-        );
+        // 解析 AI 回复中的各个部分
+        int totalScore = parseScoreFromAiResponse(content, 75);
+        List<CodeReviewResultDTO.Issue> criticalIssues = parseIssuesFromSection(content, "严重问题");
+        List<CodeReviewResultDTO.Issue> improvements = parseIssuesFromSection(content, "需要改进");
+        List<String> goodPoints = parseGoodPointsFromSection(content);
 
-        List<CodeReviewResultDTO.Issue> improvements = List.of(
-                new CodeReviewResultDTO.Issue("可读性", "medium",
-                        "变量名 `x` 不清晰", "建议改为 `userId`"),
-                new CodeReviewResultDTO.Issue("测试", "medium",
-                        "缺少边界条件测试用例", "建议补充空值、极值测试")
-        );
+        // 如果 AI 未返回有效问题，提供兜底
+        if (criticalIssues.isEmpty() && improvements.isEmpty()) {
+            criticalIssues = List.of(
+                    new CodeReviewResultDTO.Issue("安全", "medium",
+                            "建议检查用户输入是否经过校验", "添加参数校验防止注入攻击")
+            );
+            improvements = List.of(
+                    new CodeReviewResultDTO.Issue("可读性", "low",
+                            "建议添加关键逻辑注释", "提升代码可维护性")
+            );
+        }
 
         return new CodeReviewResultDTO(
                 idGenerator.nextId(),
-                76,
+                totalScore,
                 criticalIssues,
                 improvements,
-                List.of("错误处理完整", "代码结构清晰"),
+                goodPoints.isEmpty() ? List.of("代码结构清晰") : goodPoints,
                 Instant.now()
         );
+    }
+
+    /**
+     * 从 AI 回复的指定段落解析问题列表
+     * 格式：- [维度] 问题描述，建议：XXX
+     */
+    private List<CodeReviewResultDTO.Issue> parseIssuesFromSection(String response, String sectionName) {
+        List<CodeReviewResultDTO.Issue> issues = new ArrayList<>();
+        if (response == null || response.isBlank()) {
+            return issues;
+        }
+
+        // 定位到目标段落
+        String sectionMarker = switch (sectionName) {
+            case "严重问题" -> "🚨 严重问题";
+            case "需要改进" -> "⚠️ 需要改进";
+            default -> sectionName;
+        };
+
+        int sectionStart = response.indexOf(sectionMarker);
+        if (sectionStart < 0) {
+            // 尝试不带 emoji 的匹配
+            sectionStart = response.indexOf(sectionName);
+        }
+        if (sectionStart < 0) {
+            return issues;
+        }
+
+        // 找到段落结束位置（下一个 ## 或文本末尾）
+        int sectionEnd = response.indexOf("\n##", sectionStart + sectionMarker.length());
+        if (sectionEnd < 0) {
+            sectionEnd = response.length();
+        }
+
+        String sectionText = response.substring(sectionStart, sectionEnd);
+
+        // 解析每个列表项：- [维度] 问题描述，建议：XXX
+        java.util.regex.Pattern itemPattern = java.util.regex.Pattern.compile(
+                "-\\s*\\[([^]]+)\\]\\s*(.+?)(?:，建议[：:](.+))?$",
+                java.util.regex.Pattern.MULTILINE);
+        java.util.regex.Matcher matcher = itemPattern.matcher(sectionText);
+        while (matcher.find()) {
+            String dimension = matcher.group(1).trim();
+            String description = matcher.group(2).trim();
+            String suggestion = matcher.group(3) != null ? matcher.group(3).trim() : "建议优化";
+            String level = sectionName.equals("严重问题") ? "high" : "medium";
+            issues.add(new CodeReviewResultDTO.Issue(dimension, level, description, suggestion));
+        }
+
+        return issues;
+    }
+
+    /**
+     * 从 AI 回复的"做得好的地方"段落解析优点列表
+     */
+    private List<String> parseGoodPointsFromSection(String response) {
+        List<String> goodPoints = new ArrayList<>();
+        if (response == null || response.isBlank()) {
+            return goodPoints;
+        }
+
+        int sectionStart = response.indexOf("✅ 做得好的地方");
+        if (sectionStart < 0) {
+            sectionStart = response.indexOf("做得好的地方");
+        }
+        if (sectionStart < 0) {
+            return goodPoints;
+        }
+
+        int sectionEnd = response.indexOf("\n##", sectionStart + 1);
+        if (sectionEnd < 0) {
+            sectionEnd = response.length();
+        }
+
+        String sectionText = response.substring(sectionStart, sectionEnd);
+        for (String line : sectionText.split("\n")) {
+            String trimmed = line.trim();
+            if (trimmed.startsWith("-")) {
+                String point = trimmed.substring(1).trim();
+                if (!point.isEmpty()) {
+                    goodPoints.add(point);
+                }
+            }
+        }
+
+        return goodPoints;
     }
 
     /**

@@ -23,4 +23,11 @@ public class AlgorithmQuestionPO {
     private Integer sortOrder;
     private String status;
     private Instant createdAt;
+
+    // 沙盒执行相关字段
+    private String stdin;
+    private String expectedOutput;
+    private Integer testCaseCount;
+    private Integer timeLimitSec;
+    private Integer memoryLimitMb;
 }

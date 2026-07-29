@@ -39,6 +39,7 @@ export interface MockInterview {
   startedAt: ISODateTime;
   completedAt: ISODateTime | null;
   durationSeconds: number | null;
+  questions?: InterviewQuestion[];
 }
 
 export interface MockInterviewAnswer {

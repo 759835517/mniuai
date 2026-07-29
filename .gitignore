@@ -27,3 +27,14 @@ bin/
 
 ### Mac OS ###
 .DS_Store
+
+### Monorepo ###
+node_modules
+.turbo
+.next
+dist
+*.tsbuildinfo
+.env.local
+.env*.local
+apps/*/node_modules
+packages/*/node_modules

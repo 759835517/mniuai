@@ -55,6 +55,7 @@ export interface CourseProgress {
 
 export interface PlayUrlResponse {
   videoUrl: string;
+  hlsManifestUrl: string | null;
   durationSec: number;
   lastPositionSec: number;
   completed: boolean;
@@ -94,4 +95,18 @@ export interface LessonCreateRequest {
   sortOrder: number;
   free: boolean;
   requiresExamPass: boolean;
+}
+
+export interface Lesson {
+  id: ID;
+  courseId: ID;
+  title: string;
+  description: string;
+  videoUrl: string;
+  videoDuration: number;
+  thumbnailUrl: string | null;
+  sortOrder: number;
+  free: boolean;
+  requiresExamPass: boolean;
+  status: string;
 }

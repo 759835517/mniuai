@@ -44,6 +44,12 @@ export function CampusNavbar() {
               编程练习
             </Link>
             <Link
+              href="/ai-tutor"
+              className="text-gray-700 hover:text-blue-500 font-medium transition-colors"
+            >
+              AI助教
+            </Link>
+            <Link
               href="/interview"
               className="text-gray-700 hover:text-blue-500 font-medium transition-colors"
             >
@@ -110,6 +116,7 @@ export function CampusNavbar() {
               {[
                 { label: "学习路径", href: "/paths" },
                 { label: "编程练习", href: "/practice" },
+                { label: "AI助教", href: "/ai-tutor" },
                 { label: "AI面试官", href: "/interview" },
                 { label: "订阅计划", href: "/pricing" },
               ].map((item) => (

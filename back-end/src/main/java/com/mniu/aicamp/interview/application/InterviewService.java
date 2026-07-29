@@ -185,15 +185,30 @@ public class InterviewService {
         return toMockInterview(po, questionIds);
     }
 
-    public MockInterview getMockInterview(Long userId, Long id) {
+    public MockInterviewDetail getMockInterview(Long userId, Long id) {
         MockInterviewPO po = mockInterviews.selectOne(Wrappers.<MockInterviewPO>lambdaQuery()
                 .eq(MockInterviewPO::getId, id)
                 .eq(MockInterviewPO::getUserId, userId));
         if (po == null) {
             throw new BusinessException(ErrorCode.NOT_FOUND, "Mock interview not found");
         }
-        List<Long> questionIds = parseJsonLongList(po.getAiSummary());
-        return toMockInterview(po, questionIds);
+        List<Long> questionIds;
+        if ("COMPLETED".equals(po.getStatus())) {
+            // 完成后 aiSummary 存的是总结文本，题目顺序从 answers 表恢复
+            questionIds = answers.selectList(Wrappers.<MockInterviewAnswerPO>lambdaQuery()
+                            .eq(MockInterviewAnswerPO::getMockInterviewId, id)
+                            .orderByAsc(MockInterviewAnswerPO::getQuestionOrder))
+                    .stream().map(MockInterviewAnswerPO::getQuestionId).toList();
+        } else {
+            // 进行中 aiSummary 存的是题目 ID JSON 数组
+            questionIds = parseJsonLongList(po.getAiSummary());
+        }
+        List<InterviewQuestion> qs = questionIds.isEmpty() ? List.of() :
+                questions.selectBatchIds(questionIds).stream()
+                        .map(this::toQuestion)
+                        .filter(q -> q != null)
+                        .toList();
+        return toMockInterviewDetail(po, qs);
     }
 
     public PageResponse<MockInterview> listMockInterviews(Long userId, int page, int size) {
@@ -305,6 +320,7 @@ public class InterviewService {
     // ========== 内部方法 ==========
 
     private AiScoreResult gradeAnswer(InterviewQuestionPO question, String userAnswer) {
+        List<String> keyPoints = parseJsonList(question.getKeyPoints());
         String prompt = String.format("""
                 请对以下面试回答进行评分（0-10分）。
 
@@ -316,12 +332,12 @@ public class InterviewService {
                 {"score": <0-10>, "feedback": "总体评价（50字以内）", "key_points_hit": {"考察点": true/false}, "improvement": "最重要的一个改进建议"}
                 """,
                 question.getTitle(),
-                question.getKeyPoints(),
+                keyPoints,
                 userAnswer);
 
         try {
             String response = aiClient.chat("你是一个严格的面试评分官。只返回 JSON，不要其他内容。", prompt);
-            return parseScoreResult(response, parseJsonList(question.getKeyPoints()));
+            return parseScoreResult(response, keyPoints);
         } catch (Exception e) {
             return new AiScoreResult(5, "评分完成", Map.of(), "继续努力");
         }
@@ -498,6 +514,12 @@ public class InterviewService {
         return new MockInterview(po.getId(), po.getUserId(), po.getInterviewSetId(), po.getMode(),
                 po.getStatus(), po.getOverallScore(),
                 po.getAiSummary(), po.getStartedAt(), po.getCompletedAt(), po.getDurationSeconds());
+    }
+
+    private MockInterviewDetail toMockInterviewDetail(MockInterviewPO po, List<InterviewQuestion> questions) {
+        return new MockInterviewDetail(po.getId(), po.getUserId(), po.getInterviewSetId(), po.getMode(),
+                po.getStatus(), po.getOverallScore(),
+                po.getAiSummary(), po.getStartedAt(), po.getCompletedAt(), po.getDurationSeconds(), questions);
     }
 
     private MockInterviewAnswer toAnswer(MockInterviewAnswerPO po) {

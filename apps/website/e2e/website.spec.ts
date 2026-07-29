@@ -91,6 +91,40 @@ test.describe("课程广场", () => {
     const content = await page.textContent("body");
     expect(content).toContain("课程");
   });
+
+  test("对接后端 API 显示真实课程数据", async ({ page }) => {
+    await page.goto("/courses");
+    // 等待课程卡片渲染（后端数据加载完成）
+    await page.waitForSelector("text=AI 工程师面试训练营", { timeout: 10000 });
+    const content = await page.textContent("body");
+    // 验证后端种子数据正确渲染
+    expect(content).toContain("AI 工程师面试训练营");
+    expect(content).toContain("少儿 AI 编程竞赛班");
+    expect(content).toContain("RAG + Agent 实战开发");
+  });
+
+  test("分类筛选 - 选择程序员显示 engineer 课程", async ({ page }) => {
+    await page.goto("/courses");
+    await page.waitForLoadState("networkidle");
+    // 点击"程序员"筛选按钮
+    await page.click("text=程序员");
+    await page.waitForTimeout(1500);
+    const content = await page.textContent("body");
+    // engineer 类别的课程应该显示
+    expect(content).toContain("AI 工程师面试训练营");
+    // 非 engineer 类别的课程不应显示
+    expect(content).not.toContain("少儿 AI 编程竞赛班");
+  });
+
+  test("难度筛选 - 选择入门显示入门课程", async ({ page }) => {
+    await page.goto("/courses");
+    await page.waitForLoadState("networkidle");
+    await page.click("text=入门");
+    await page.waitForTimeout(1500);
+    const content = await page.textContent("body");
+    expect(content).toContain("少儿 AI 编程竞赛班");
+    expect(content).not.toContain("RAG + Agent 实战开发");
+  });
 });
 
 test.describe("联系表单校验", () => {

@@ -6,6 +6,7 @@ import com.mniu.aicamp.interview.application.InterviewService;
 import com.mniu.aicamp.interview.application.InterviewSet;
 import com.mniu.aicamp.interview.application.MockInterview;
 import com.mniu.aicamp.interview.application.MockInterviewAnswer;
+import com.mniu.aicamp.interview.application.MockInterviewDetail;
 import com.mniu.aicamp.interview.application.MockInterviewAnswerRequest;
 import com.mniu.aicamp.interview.application.MockInterviewStartRequest;
 import com.mniu.aicamp.shared.api.ApiResponse;
@@ -79,7 +80,7 @@ public class InterviewController {
     }
 
     @GetMapping("/mock/{id}")
-    ApiResponse<MockInterview> getMock(@PathVariable Long id) {
+    ApiResponse<MockInterviewDetail> getMock(@PathVariable Long id) {
         return ApiResponse.ok(service.getMockInterview(CurrentUsers.require().id(), id));
     }
 

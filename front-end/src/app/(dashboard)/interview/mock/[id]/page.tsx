@@ -42,8 +42,11 @@ export default function MockInterviewPage() {
     interviewApi.getMock(id)
       .then((res) => {
         setInterview(res);
-        // Parse question IDs from aiSummary (temporary storage)
-        if (res.aiSummary) {
+        // Backend now returns questions directly in the detail response
+        if (res.questions && res.questions.length > 0) {
+          setQuestions(res.questions);
+        } else if (res.aiSummary) {
+          // Fallback: parse question IDs from aiSummary (legacy)
           try {
             const ids = JSON.parse(res.aiSummary) as string[];
             Promise.all(ids.map((qid) => interviewApi.getQuestion(qid)))
@@ -120,6 +123,16 @@ export default function MockInterviewPage() {
             }
           }
         }
+      }
+
+      // SSE 流结束后，调用 submitAnswer 存储回答并获取 AI 评分
+      try {
+        await interviewApi.submitAnswer(id, {
+          questionId: currentQuestion.id,
+          userAnswer: input,
+        });
+      } catch {
+        // 评分存储失败不影响用户体验，静默处理
       }
     } catch {
       // Fallback: use regular answer API

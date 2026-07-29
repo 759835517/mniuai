@@ -68,6 +68,7 @@ public class AuthService {
         user.setSkills("");
         user.setGoal("");
         user.setWeeklyHours(0);
+        user.setRole(CurrentUser.ROLE_USER);
         try {
             users.insert(user);
         } catch (DuplicateKeyException ex) {
@@ -104,7 +105,7 @@ public class AuthService {
         }
         try {
             UserAccount account = userAccounts.getUser(Long.parseLong(userId));
-            return Optional.of(new CurrentUser(account.id(), account.email()));
+            return Optional.of(new CurrentUser(account.id(), account.email(), account.role()));
         } catch (RuntimeException ex) {
             return Optional.empty();
         }

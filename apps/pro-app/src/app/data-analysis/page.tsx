@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { proApi } from "@/lib/api";
 
 const SAMPLE_DATA = [
   { month: "1月", gmv: 82, orders: 1200 },
@@ -18,12 +19,6 @@ const SUGGESTIONS = [
   "数据异常点在哪里？",
 ];
 
-const MOCK_INSIGHTS: Record<string, string> = {
-  "本月各渠道 GMV 对比如何？": "根据数据分析：\n\n1. 6月GMV为134万，较1月增长63%，呈持续上涨趋势。\n2. 环比增速：5月→6月增长13.6%，为近半年最高增速。\n3. 订单量与GMV正相关，客单价相对稳定（约68-70元/单）。\n\n建议关注：GMV增速持续提升，可考虑是否加大市场投入。",
-  "找出增长最快的时间段": "增速分析：\n\n最快增速段：5月→6月（+13.6%）\n最慢增速段：1月→2月（-8.5%，为唯一下滑月）\n\n整体趋势：除2月外，每月均保持正增长，平均月增速约为8.3%。\n\n2月下滑可能与春节假期有关，属正常季节性波动。",
-  default: "根据上传的数据，发现以下关键洞察：\n\n1. 整体趋势向好，6个月累计增长63%\n2. 3月出现加速拐点，随后持续高增\n3. 客单价稳定在68-70元，复购率支撑良好\n\n建议：重点复盘3月以来的增长驱动因素，提炼可复制的策略。",
-};
-
 export default function DataAnalysisPage() {
   const [query, setQuery] = useState("");
   const [result, setResult] = useState("");
@@ -33,9 +28,15 @@ export default function DataAnalysisPage() {
   async function handleQuery() {
     if (!query.trim()) return;
     setLoading(true);
-    await new Promise((r) => setTimeout(r, 1800));
-    setResult(MOCK_INSIGHTS[query] || MOCK_INSIGHTS.default);
-    setLoading(false);
+    try {
+      const res = await proApi.analyzeData({ query });
+      // axios 拦截器已解包，res 直接是数据
+      setResult((res as any)?.insight || "");
+    } catch {
+      alert("分析失败，请稍后重试");
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (

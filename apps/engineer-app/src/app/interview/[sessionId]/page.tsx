@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
+import { engineerApi } from "@/lib/api";
 
 type Msg = { role: "interviewer" | "candidate"; content: string };
 
@@ -45,33 +46,15 @@ export default function InterviewSessionPage() {
     setMessages((m) => [...m, { role: "interviewer", content: "" }]);
 
     try {
-      const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/interview/answer`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${typeof window !== "undefined" ? localStorage.getItem("token") : ""}`,
-          },
-          body: JSON.stringify({ sessionId, answer }),
-        }
-      );
-      if (!res.body) throw new Error("no stream");
-      const reader = res.body.getReader();
-      const decoder = new TextDecoder();
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        const chunk = decoder.decode(value);
-        setMessages((m) => {
-          const copy = [...m];
-          copy[copy.length - 1] = {
-            role: "interviewer",
-            content: copy[copy.length - 1].content + chunk,
-          };
-          return copy;
-        });
-      }
+      const res = await engineerApi.answerInterview({ sessionId, answer });
+      setMessages((m) => {
+        const copy = [...m];
+        copy[copy.length - 1] = {
+          role: "interviewer",
+          content: res.reply,
+        };
+        return copy;
+      });
     } catch {
       setMessages((m) => {
         const copy = [...m];

@@ -6,12 +6,12 @@
         <entry key="0">
           <value>
             <TabSessionState>
-              <option name="provider" value="codex" />
-              <option name="sessionId" value="019e7c02-85bf-7272-be4a-819f8fac4d16" />
+              <option name="provider" value="claude" />
+              <option name="sessionId" value="2d6b9189-ba11-4aba-a9cf-24f89f4384e7" />
               <option name="cwd" value="$PROJECT_DIR$" />
-              <option name="model" value="gpt-5.5" />
+              <option name="model" value="claude-opus-4-7[1m]" />
               <option name="permissionMode" value="bypassPermissions" />
-              <option name="reasoningEffort" value="xhigh" />
+              <option name="reasoningEffort" value="high" />
             </TabSessionState>
           </value>
         </entry>

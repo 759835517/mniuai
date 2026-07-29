@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { authApi, setTokens } from "@/lib/api";
 
 export default function LoginPage() {
   const [tab, setTab] = useState<"login" | "register">("login");
@@ -9,13 +10,26 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    setError("");
     setLoading(true);
-    await new Promise((r) => setTimeout(r, 900));
-    setLoading(false);
-    window.location.href = "/my/progress";
+    try {
+      if (tab === "login") {
+        const res = await authApi.login({ email, password });
+        setTokens(res.data.accessToken, res.data.refreshToken);
+      } else {
+        const res = await authApi.register({ email, password, name });
+        setTokens(res.data.accessToken, res.data.refreshToken);
+      }
+      window.location.href = "/my/progress";
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "请求失败，请稍后重试");
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
@@ -45,6 +59,12 @@ export default function LoginPage() {
               </button>
             ))}
           </div>
+
+          {error && (
+            <div className="bg-red-50 border border-red-200 text-red-600 text-sm rounded-xl px-4 py-3 mb-4">
+              {error}
+            </div>
+          )}
 
           <form onSubmit={handleSubmit} className="space-y-4">
             {tab === "register" && (

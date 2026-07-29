@@ -1,4 +1,5 @@
-import type { AxiosInstance } from "../createApiClient";
+import type { ApiClient } from "../createApiClient";
+import type { PageResponse } from "../types/common";
 
 // ===== 类型定义 =====
 
@@ -43,18 +44,19 @@ export interface MockInterview {
 }
 
 export interface MockInterviewDetail extends MockInterview {
-  answers: MockInterviewAnswer[];
+  questions?: InterviewQuestion[];
+  answers?: MockInterviewAnswer[];
 }
 
 export interface MockInterviewAnswer {
   id: string;
+  mockInterviewId: string;
   questionId: string;
-  questionTitle: string;
-  questionContent: string;
+  questionOrder: number;
   userAnswer: string;
+  aiScore: number | null;
   aiFeedback: string | null;
-  score: number | null;
-  keyPointsHit: Record<string, boolean> | null;
+  aiKeyPointsHit: Record<string, boolean> | null;
   thinkingSeconds: number | null;
   answeredAt: string;
 }
@@ -74,17 +76,9 @@ export interface MockInterviewAnswerRequest {
   thinkingSeconds?: number;
 }
 
-export interface PageResponse<T> {
-  content: T[];
-  totalElements: number;
-  totalPages: number;
-  page: number;
-  size: number;
-}
-
 // ===== API 模块 =====
 
-export function createInterviewApi(client: AxiosInstance) {
+export function createInterviewApi(client: ApiClient) {
   return {
     // 面试题目列表
     listQuestions: (params?: {

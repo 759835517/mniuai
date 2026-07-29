@@ -1,6 +1,14 @@
 import axios, { type AxiosInstance, type AxiosRequestConfig } from "axios";
 
-export function createApiClient(baseURL: string, getToken: () => string | null): AxiosInstance {
+// API 客户端返回类型：拦截器已解包 response.data.data
+export interface ApiClient {
+  get<T = unknown>(url: string, config?: AxiosRequestConfig): Promise<T>;
+  post<T = unknown>(url: string, data?: unknown, config?: AxiosRequestConfig): Promise<T>;
+  put<T = unknown>(url: string, data?: unknown, config?: AxiosRequestConfig): Promise<T>;
+  delete<T = unknown>(url: string, config?: AxiosRequestConfig): Promise<T>;
+}
+
+export function createApiClient(baseURL: string, getToken: () => string | null): ApiClient {
   const client = axios.create({
     baseURL,
     timeout: 30000,
@@ -27,7 +35,7 @@ export function createApiClient(baseURL: string, getToken: () => string | null):
     }
   );
 
-  return client;
+  return client as unknown as ApiClient;
 }
 
 export type { AxiosInstance, AxiosRequestConfig };

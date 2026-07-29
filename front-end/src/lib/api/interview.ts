@@ -33,7 +33,7 @@ export const interviewApi = {
     return apiClient.post("/interview/mock/start", payload);
   },
   getMock(id: ID): Promise<MockInterview> {
-    return apiClient.get(`/interview/mock/${id}`);
+    return apiClient.get(`/interview/mock/${id}`) as Promise<MockInterview>;
   },
   listHistory(page = 0, size = 20): Promise<PageResponse<MockInterview>> {
     return apiClient.get("/interview/mock/history", { params: { page, size } });

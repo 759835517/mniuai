@@ -1,6 +1,16 @@
 package com.mniu.aicamp.campus.api;
 
+import com.mniu.aicamp.campus.application.AiTutorRequest;
+import com.mniu.aicamp.campus.application.AiTutorResponse;
 import com.mniu.aicamp.campus.application.CampusService;
+import com.mniu.aicamp.campus.application.EmploymentReportDTO;
+import com.mniu.aicamp.campus.application.EmploymentReportRequest;
+import com.mniu.aicamp.campus.application.GuaranteeApplicationDTO;
+import com.mniu.aicamp.campus.application.GuaranteeApplicationRequest;
+import com.mniu.aicamp.campus.application.PortfolioDTO;
+import com.mniu.aicamp.campus.application.ResumeRequest;
+import com.mniu.aicamp.campus.application.ResumeResponse;
+import com.mniu.aicamp.campus.application.SubscriptionPlanDTO;
 import com.mniu.aicamp.campus.application.CodeSubmissionDTO;
 import com.mniu.aicamp.campus.application.CodeSubmitRequest;
 import com.mniu.aicamp.campus.application.CourseSummaryDTO;
@@ -115,6 +125,59 @@ public class CampusController {
             return ApiResponse.error("PATH_NOT_FOUND", "学习路径不存在");
         }
         return ApiResponse.ok(progress);
+    }
+
+    /**
+     * AI 助教对话（需登录）
+     */
+    @PostMapping("/ai/tutor")
+    public ApiResponse<AiTutorResponse> chatWithTutor(@Valid @RequestBody AiTutorRequest request) {
+        Long userId = CurrentUsers.require().id();
+        return ApiResponse.ok(service.chatWithTutor(userId, request));
+    }
+
+    /**
+     * 获取用户作品集（需登录）
+     */
+    @GetMapping("/portfolio")
+    public ApiResponse<PortfolioDTO> getPortfolio() {
+        Long userId = CurrentUsers.require().id();
+        return ApiResponse.ok(service.getPortfolio(userId));
+    }
+
+    /**
+     * AI 生成简历（需登录）
+     */
+    @PostMapping("/resume/generate")
+    public ApiResponse<ResumeResponse> generateResume(@Valid @RequestBody ResumeRequest request) {
+        Long userId = CurrentUsers.require().id();
+        return ApiResponse.ok(service.generateResume(userId, request));
+    }
+
+    /**
+     * 订阅计划列表（公开）
+     */
+    @GetMapping("/subscription/plans")
+    public ApiResponse<List<SubscriptionPlanDTO>> listSubscriptionPlans() {
+        return ApiResponse.ok(service.listSubscriptionPlans());
+    }
+
+    /**
+     * 申请对赌协议（需登录）
+     */
+    @PostMapping("/guarantee/apply")
+    public ApiResponse<GuaranteeApplicationDTO> applyForGuarantee(@Valid @RequestBody GuaranteeApplicationRequest request) {
+        Long userId = CurrentUsers.require().id();
+        return ApiResponse.ok(service.applyForGuarantee(userId, request));
+    }
+
+    /**
+     * 就业上报（需登录）
+     */
+    @PostMapping("/employment/report")
+    public ApiResponse<EmploymentReportDTO> reportEmployment(@Valid @RequestBody EmploymentReportRequest request) {
+        Long userId = CurrentUsers.require().id();
+        return ApiResponse.ok(service.reportEmployment(userId, request));
     }
 
     /**

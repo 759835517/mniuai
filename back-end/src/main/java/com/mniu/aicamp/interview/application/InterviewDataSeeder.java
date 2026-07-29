@@ -1,5 +1,7 @@
 package com.mniu.aicamp.interview.application;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mniu.aicamp.interview.infrastructure.mapper.InterviewQuestionMapper;
 import com.mniu.aicamp.interview.infrastructure.po.InterviewQuestionPO;
 import com.mniu.aicamp.shared.util.SnowflakeIdGenerator;
@@ -49,14 +51,6 @@ public class InterviewDataSeeder {
             po.setCreatedAt(Instant.now());
             po.setUpdatedAt(Instant.now());
             questions.insert(po);
-        }
-    }
-
-    private String toJson(Object obj) {
-        try {
-            return new com.fasterxml.jackson.databind.ObjectMapper().writeValueAsString(obj);
-        } catch (Exception e) {
-            return "[]";
         }
     }
 
@@ -250,5 +244,13 @@ public class InterviewDataSeeder {
                         List.of("行为面试", "领导力"),
                         "真题")
         );
+    }
+
+    private String toJson(Object obj) {
+        try {
+            return new ObjectMapper().writeValueAsString(obj);
+        } catch (JsonProcessingException e) {
+            return "[]";
+        }
     }
 }

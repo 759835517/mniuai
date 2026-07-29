@@ -2,6 +2,7 @@ package com.mniu.aicamp.article.api;
 
 import com.mniu.aicamp.article.application.Article;
 import com.mniu.aicamp.article.application.ArticleCreateRequest;
+import com.mniu.aicamp.article.application.ArticleDetail;
 import com.mniu.aicamp.article.application.ArticleService;
 import com.mniu.aicamp.article.application.ArticleUpdateRequest;
 import com.mniu.aicamp.shared.api.ApiResponse;
@@ -37,8 +38,8 @@ public class AdminArticleController {
     }
 
     @GetMapping("/{id}")
-    ApiResponse<Article> get(@PathVariable Long id) {
-        return ApiResponse.ok(service.getById(id));
+    ApiResponse<ArticleDetail> get(@PathVariable Long id) {
+        return ApiResponse.ok(service.getDetailById(id));
     }
 
     @PostMapping

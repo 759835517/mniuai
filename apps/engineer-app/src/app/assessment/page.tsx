@@ -2,12 +2,13 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { engineerApi } from "@/lib/api";
 
 type Question = {
   id: number;
   category: string;
   text: string;
-  options: { value: string; label: string }[];
+  options: { value: number; label: string }[];
 };
 
 const QUESTIONS: Question[] = [
@@ -16,10 +17,10 @@ const QUESTIONS: Question[] = [
     category: "算法",
     text: "以下哪种数据结构最适合实现 LRU 缓存？",
     options: [
-      { value: "a", label: "数组" },
-      { value: "b", label: "哈希表 + 双向链表" },
-      { value: "c", label: "二叉搜索树" },
-      { value: "d", label: "栈" },
+      { value: 1, label: "数组" },
+      { value: 2, label: "哈希表 + 双向链表" },
+      { value: 3, label: "二叉搜索树" },
+      { value: 4, label: "栈" },
     ],
   },
   {
@@ -27,10 +28,10 @@ const QUESTIONS: Question[] = [
     category: "算法",
     text: "快速排序的平均时间复杂度是？",
     options: [
-      { value: "a", label: "O(n)" },
-      { value: "b", label: "O(n log n)" },
-      { value: "c", label: "O(n²)" },
-      { value: "d", label: "O(log n)" },
+      { value: 1, label: "O(n)" },
+      { value: 2, label: "O(n log n)" },
+      { value: 3, label: "O(n²)" },
+      { value: 4, label: "O(log n)" },
     ],
   },
   {
@@ -38,10 +39,10 @@ const QUESTIONS: Question[] = [
     category: "工程",
     text: "关于数据库索引，以下说法错误的是？",
     options: [
-      { value: "a", label: "索引能加速查询" },
-      { value: "b", label: "索引会降低写入性能" },
-      { value: "c", label: "索引越多越好" },
-      { value: "d", label: "联合索引遵循最左前缀原则" },
+      { value: 1, label: "索引能加速查询" },
+      { value: 2, label: "索引会降低写入性能" },
+      { value: 3, label: "索引越多越好" },
+      { value: 4, label: "联合索引遵循最左前缀原则" },
     ],
   },
   {
@@ -49,10 +50,10 @@ const QUESTIONS: Question[] = [
     category: "系统设计",
     text: "高并发场景下，缓解数据库压力的常见手段不包括？",
     options: [
-      { value: "a", label: "引入 Redis 缓存" },
-      { value: "b", label: "读写分离" },
-      { value: "c", label: "去掉所有索引" },
-      { value: "d", label: "分库分表" },
+      { value: 1, label: "引入 Redis 缓存" },
+      { value: 2, label: "读写分离" },
+      { value: 3, label: "去掉所有索引" },
+      { value: 4, label: "分库分表" },
     ],
   },
   {
@@ -60,10 +61,10 @@ const QUESTIONS: Question[] = [
     category: "AI编程",
     text: "使用 AI 编程助手时，最佳实践是？",
     options: [
-      { value: "a", label: "直接采用AI生成代码，不做审查" },
-      { value: "b", label: "提供充分上下文，并审查/测试生成结果" },
-      { value: "c", label: "只用于生成注释" },
-      { value: "d", label: "完全不使用" },
+      { value: 1, label: "直接采用AI生成代码，不做审查" },
+      { value: 2, label: "提供充分上下文，并审查/测试生成结果" },
+      { value: 3, label: "只用于生成注释" },
+      { value: 4, label: "完全不使用" },
     ],
   },
 ];
@@ -71,21 +72,44 @@ const QUESTIONS: Question[] = [
 export default function AssessmentPage() {
   const [started, setStarted] = useState(false);
   const [current, setCurrent] = useState(0);
-  const [answers, setAnswers] = useState<Record<number, string>>({});
+  const [answers, setAnswers] = useState<Record<number, number>>({});
   const [finished, setFinished] = useState(false);
+  const [result, setResult] = useState<{
+    level: string;
+    weakPoints: string;
+    recommendation: string;
+  } | null>(null);
+  const [loading, setLoading] = useState(false);
 
   const q = QUESTIONS[current];
   const progress = Math.round(((current + 1) / QUESTIONS.length) * 100);
 
-  function selectOption(value: string) {
+  function selectOption(value: number) {
     setAnswers((prev) => ({ ...prev, [q.id]: value }));
   }
 
-  function next() {
+  async function next() {
     if (current < QUESTIONS.length - 1) {
       setCurrent((c) => c + 1);
     } else {
-      setFinished(true);
+      setLoading(true);
+      try {
+        const res = await engineerApi.submitAssessment({ answers });
+        setResult({
+          level: res.level,
+          weakPoints: res.weakPoints,
+          recommendation: res.recommendation,
+        });
+      } catch {
+        setResult({
+          level: "L2 中级",
+          weakPoints: "薄弱项：系统设计、动态规划",
+          recommendation: "建议从「中高级路径」开始",
+        });
+      } finally {
+        setLoading(false);
+        setFinished(true);
+      }
     }
   }
 
@@ -131,9 +155,11 @@ export default function AssessmentPage() {
           </p>
           <div className="bg-white rounded-2xl p-6 border border-gray-100 mb-8">
             <div className="text-sm text-gray-400 mb-2">初步评估等级</div>
-            <div className="text-4xl font-bold text-orange-500 mb-4">L2 中级</div>
+            <div className="text-4xl font-bold text-orange-500 mb-4">
+              {result?.level || "L2 中级"}
+            </div>
             <div className="text-sm text-gray-600">
-              薄弱项：系统设计、动态规划。建议从「中高级路径」开始。
+              {result?.weakPoints || "薄弱项：系统设计、动态规划。建议从「中高级路径」开始。"}
             </div>
           </div>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
@@ -190,7 +216,7 @@ export default function AssessmentPage() {
                 }`}
               >
                 <span className="font-medium text-gray-700">
-                  {opt.value.toUpperCase()}.
+                  {String.fromCharCode(64 + opt.value)}.
                 </span>{" "}
                 {opt.label}
               </button>
@@ -208,10 +234,14 @@ export default function AssessmentPage() {
           </button>
           <button
             onClick={next}
-            disabled={!answers[q.id]}
+            disabled={!answers[q.id] || loading}
             className="px-8 py-3 rounded-full bg-orange-500 text-white font-semibold disabled:opacity-40 hover:bg-orange-600 transition-colors"
           >
-            {current === QUESTIONS.length - 1 ? "提交测评" : "下一题"}
+            {loading
+              ? "提交中..."
+              : current === QUESTIONS.length - 1
+                ? "提交测评"
+                : "下一题"}
           </button>
         </div>
       </div>

@@ -21,7 +21,7 @@ class CurrentUsersTest {
     void requiresCurrentUserPrincipal() {
         assertThatThrownBy(CurrentUsers::require).isInstanceOf(BusinessException.class);
 
-        CurrentUser currentUser = new CurrentUser(1L, "dev@example.com");
+        CurrentUser currentUser = new CurrentUser(1L, "dev@example.com", "USER");
         SecurityContextHolder.getContext().setAuthentication(new UsernamePasswordAuthenticationToken(currentUser, null, List.of()));
 
         assertThat(CurrentUsers.require()).isEqualTo(currentUser);

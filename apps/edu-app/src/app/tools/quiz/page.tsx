@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { ToolLayout } from "@/components/tools/ToolLayout";
-import { AIStreamOutput } from "@/components/tools/AIStreamOutput";
+import { eduApi } from "@/lib/api";
 
 const SUBJECTS = ["语文", "数学", "英语", "物理", "化学", "历史", "政治", "生物"];
 const GRADES = ["一年级", "二年级", "三年级", "四年级", "五年级", "六年级", "初一", "初二", "初三", "高一", "高二", "高三"];
@@ -19,7 +19,7 @@ export default function QuizPage() {
     count: 10,
     withAnswer: true,
   });
-  const [output, setOutput] = useState("");
+  const [questions, setQuestions] = useState<any[]>([]);
   const [isStreaming, setIsStreaming] = useState(false);
 
   const handleChange = (
@@ -50,51 +50,39 @@ export default function QuizPage() {
       alert("请至少选择一种题型");
       return;
     }
-    setOutput("");
+    setQuestions([]);
     setIsStreaming(true);
 
     try {
-      const res = await fetch("/api/v1/edu/quiz/generate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
+      const res = await eduApi.generateQuiz({
+        subject: form.subject,
+        grade: form.grade,
+       知识点: form.knowledgePoints,
+        questionTypes: form.types,
+        difficulty: form.difficulty,
+        count: form.count,
+        withAnswer: form.withAnswer,
       });
-      if (!res.ok || !res.body) throw new Error("生成失败");
-      const reader = res.body.getReader();
-      const decoder = new TextDecoder();
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        const chunk = decoder.decode(value, { stream: true });
-        for (const line of chunk.split("\n")) {
-          if (line.startsWith("data: ")) {
-            const data = line.slice(6);
-            if (data === "[DONE]") break;
-            try {
-              const json = JSON.parse(data);
-              setOutput((prev) => prev + (json.choices?.[0]?.delta?.content || ""));
-            } catch { /* ignore */ }
-          }
-        }
-      }
+      // axios 拦截器已解包，res 直接是数据
+      setQuestions(Array.isArray(res) ? res : []);
     } catch {
-      setOutput("生成失败，请稍后重试。");
+      alert("生成失败，请稍后重试。");
     } finally {
       setIsStreaming(false);
     }
   };
 
-  const handleExport = async (format: "word" | "pdf") => {
-    const res = await fetch("/api/v1/edu/quiz/export", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ content: output, format }),
-    });
-    const blob = await res.blob();
+  const handleExport = () => {
+    const text = questions.map((q, i) =>
+      `${i + 1}. [${q.type}] ${q.content}\n   选项：${q.options?.join(" / ") || "—"}\n   答案：${q.answer}\n   解析：${q.analysis || "—"}`
+    ).join("\n\n");
+    const blob = new Blob([text], { type: "text/plain;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
-    a.href = URL.createObjectURL(blob);
-    a.download = `试卷.${format === "word" ? "docx" : "pdf"}`;
+    a.href = url;
+    a.download = `${form.subject}-${form.grade}-试卷.txt`;
     a.click();
+    URL.revokeObjectURL(url);
   };
 
   const inputPanel = (
@@ -180,16 +168,55 @@ export default function QuizPage() {
   );
 
   const outputPanel = (
-    <AIStreamOutput
-      content={output}
-      isStreaming={isStreaming}
-      isEmpty={!output}
-      emptyText="填写知识点和题型，点击「AI生成题目」"
-      onCopy={() => navigator.clipboard.writeText(output)}
-      onSave={() => alert("保存到我的题库")}
-      onExport={handleExport}
-      onRegenerate={handleGenerate}
-    />
+    <div className="h-full flex flex-col">
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="font-semibold text-gray-900">生成结果</h2>
+        {questions.length > 0 && (
+          <div className="flex gap-2">
+            <button onClick={() => navigator.clipboard.writeText(JSON.stringify(questions))}
+              className="text-xs px-3 py-1.5 rounded-lg border border-gray-200 hover:bg-gray-50">
+              复制
+            </button>
+            <button onClick={handleExport}
+              className="text-xs px-3 py-1.5 rounded-lg bg-orange-500 text-white hover:bg-orange-600">
+              导出试卷
+            </button>
+          </div>
+        )}
+      </div>
+
+      {isStreaming ? (
+        <div className="flex-1 flex items-center justify-center">
+          <div className="text-center">
+            <div className="animate-spin w-8 h-8 border-4 border-orange-200 border-t-orange-500 rounded-full mx-auto mb-3" />
+            <p className="text-sm text-gray-500">AI 正在出题...</p>
+          </div>
+        </div>
+      ) : questions.length === 0 ? (
+        <div className="flex-1 flex items-center justify-center">
+          <p className="text-sm text-gray-400">填写知识点和题型，点击「AI生成题目」</p>
+        </div>
+      ) : (
+        <div className="flex-1 overflow-y-auto space-y-4">
+          {questions.map((q, i) => (
+            <div key={q.id || i} className="border border-gray-100 rounded-xl p-4">
+              <div className="flex items-center gap-2 mb-2">
+                <span className="text-xs bg-orange-100 text-orange-600 px-2 py-0.5 rounded-full">{q.type}</span>
+                <span className="text-xs text-gray-400">#{i + 1}</span>
+              </div>
+              <p className="text-sm text-gray-800 mb-2">{q.content}</p>
+              {q.options && q.options.length > 0 && (
+                <div className="text-xs text-gray-500 mb-1">
+                  选项：{q.options.join(" / ")}
+                </div>
+              )}
+              <div className="text-xs text-green-600">答案：{q.answer}</div>
+              {q.analysis && <div className="text-xs text-gray-400 mt-1">解析：{q.analysis}</div>}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
   );
 
   return (

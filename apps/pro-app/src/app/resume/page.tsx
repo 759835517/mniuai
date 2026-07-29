@@ -1,30 +1,41 @@
 "use client";
 
 import { useState } from "react";
+import { proApi } from "@/lib/api";
 
-const MOCK_RESULT = {
-  atsScore: { before: 42, after: 78 },
-  keywords: ["数据驱动", "用户增长", "A/B测试", "留存率", "漏斗分析"],
-  suggestions: [
-    { type: "量化成就", level: "high", before: "负责用户增长工作", after: "主导用户增长专项，3个月内DAU从10万提升至15万（+50%），付费转化率从2.8%提升至3.5%" },
-    { type: "关键词补充", level: "high", before: "简历缺少岗位关键词", after: '建议在工作描述中加入：数据驱动、A/B测试、用户漏斗分析、留存率优化' },
-    { type: "结构优化", level: "medium", before: "工作经历排列顺序不佳", after: "建议将最匹配的项目经验提前，突出与目标JD最相关的能力" },
-    { type: "ATS通过率", level: "medium", before: "当前评分42分（较低）", after: "优化后预计提升至78分，通过自动筛选概率从15%提升至65%" },
-  ],
-};
+interface ResumeResult {
+  atsScoreBefore: number;
+  atsScoreAfter: number;
+  keywords: string[];
+  suggestions: {
+    type: string;
+    level: string;
+    before: string;
+    after: string;
+  }[];
+}
 
 export default function ResumePage() {
   const [resume, setResume] = useState("");
   const [jd, setJd] = useState("");
-  const [result, setResult] = useState<typeof MOCK_RESULT | null>(null);
+  const [result, setResult] = useState<ResumeResult | null>(null);
   const [loading, setLoading] = useState(false);
 
   async function handleAnalyze() {
     if (!resume.trim()) return;
     setLoading(true);
-    await new Promise((r) => setTimeout(r, 2000));
-    setResult(MOCK_RESULT);
-    setLoading(false);
+    try {
+      const res = await proApi.analyzeResume({
+        resume,
+        targetJd: jd || undefined,
+      });
+      // axios 拦截器已解包，res 直接是数据
+      setResult(res as unknown as ResumeResult || null);
+    } catch {
+      alert("分析失败，请稍后重试");
+    } finally {
+      setLoading(false);
+    }
   }
 
   const levelColor: Record<string, string> = {
@@ -77,17 +88,17 @@ export default function ResumePage() {
               <h2 className="font-bold text-gray-900 mb-4">ATS 通过率预测</h2>
               <div className="flex items-center gap-8">
                 <div className="text-center">
-                  <div className="text-3xl font-bold text-red-500">{result.atsScore.before}</div>
+                  <div className="text-3xl font-bold text-red-500">{result.atsScoreBefore}</div>
                   <div className="text-xs text-gray-400 mt-1">当前分数</div>
                 </div>
                 <div className="text-2xl text-gray-300">→</div>
                 <div className="text-center">
-                  <div className="text-3xl font-bold text-green-600">{result.atsScore.after}</div>
+                  <div className="text-3xl font-bold text-green-600">{result.atsScoreAfter}</div>
                   <div className="text-xs text-gray-400 mt-1">优化后预估</div>
                 </div>
                 <div className="flex-1">
                   <div className="h-2 bg-gray-100 rounded-full mb-1">
-                    <div className="h-full bg-green-500 rounded-full" style={{ width: `${result.atsScore.after}%` }} />
+                    <div className="h-full bg-green-500 rounded-full" style={{ width: `${result.atsScoreAfter}%` }} />
                   </div>
                   <div className="text-xs text-gray-400">面试邀约概率提升约 4倍</div>
                 </div>

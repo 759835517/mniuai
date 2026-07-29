@@ -11,7 +11,9 @@ import com.mniu.aicamp.quiz.infrastructure.po.ExamPO;
 import com.mniu.aicamp.quiz.infrastructure.po.ExamQuestionPO;
 import com.mniu.aicamp.quiz.infrastructure.po.ExamRecordPO;
 import com.mniu.aicamp.roadmap.infrastructure.mapper.RoadmapMapper;
+import com.mniu.aicamp.roadmap.infrastructure.mapper.RoadmapTaskMapper;
 import com.mniu.aicamp.roadmap.infrastructure.po.RoadmapPO;
+import com.mniu.aicamp.roadmap.infrastructure.po.RoadmapTaskPO;
 import com.mniu.aicamp.shared.ai.AiClientPort;
 import com.mniu.aicamp.shared.api.ErrorCode;
 import com.mniu.aicamp.shared.api.PageResponse;
@@ -24,8 +26,11 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @Service
@@ -35,11 +40,11 @@ public class ExamService {
             请根据以下学习路线图中第 %d 周的内容，生成一场测验。
 
             周主题：%s
-            学习目标：%s
+            学习任务：%s
 
             要求：
             1. 生成 8 道单选题 + 2 道多选题 + 1 道思考题
-            2. 选择题覆盖所有学习目标，难度分布：基础 40%%、中级 40%%、进阶 20%%
+            2. 选择题覆盖所有学习任务，难度分布：基础 40%%、中级 40%%、进阶 20%%
             3. 每道选择题提供 4 个选项，其中 1-2 个正确答案
             4. 思考题要求结合实际场景进行分析或设计
             5. 每道题必须附带详细的答案解析
@@ -98,22 +103,152 @@ public class ExamService {
     private final ExamQuestionMapper questions;
     private final ExamRecordMapper records;
     private final RoadmapMapper roadmaps;
+    private final RoadmapTaskMapper roadmapTasks;
     private final SnowflakeIdGenerator idGenerator;
     private final ObjectMapper objectMapper;
     private final AiClientPort aiClient;
     private final GrowthService growthService;
 
     public ExamService(ExamMapper exams, ExamQuestionMapper questions, ExamRecordMapper records,
-                      RoadmapMapper roadmaps, SnowflakeIdGenerator idGenerator,
+                      RoadmapMapper roadmaps, RoadmapTaskMapper roadmapTasks, SnowflakeIdGenerator idGenerator,
                       ObjectMapper objectMapper, AiClientPort aiClient, GrowthService growthService) {
         this.exams = exams;
         this.questions = questions;
         this.records = records;
         this.roadmaps = roadmaps;
+        this.roadmapTasks = roadmapTasks;
         this.idGenerator = idGenerator;
         this.objectMapper = objectMapper;
         this.aiClient = aiClient;
         this.growthService = growthService;
+    }
+
+    // ========== 演示数据初始化 ==========
+
+    /**
+     * 为当前用户初始化演示路线图 + 考试数据（幂等）。
+     * 如果用户已有路线图则复用，否则创建一个演示路线图并生成考试。
+     */
+    @Transactional
+    public Long initDemoData(Long userId) {
+        // 查找用户已有的活跃路线图
+        RoadmapPO existing = roadmaps.selectOne(Wrappers.<RoadmapPO>lambdaQuery()
+                .eq(RoadmapPO::getUserId, userId)
+                .eq(RoadmapPO::getActive, true));
+        Long roadmapId = existing != null ? existing.getId() : null;
+
+        if (roadmapId == null) {
+            roadmapId = createDemoRoadmap(userId);
+        }
+
+        // 如果该路线图已有考试则跳过
+        Long finalRoadmapId = roadmapId;
+        long examCount = exams.selectCount(Wrappers.<ExamPO>lambdaQuery()
+                .eq(ExamPO::getRoadmapId, finalRoadmapId));
+        if (examCount > 0) {
+            return roadmapId;
+        }
+
+        createDemoExams(roadmapId);
+        return roadmapId;
+    }
+
+    private Long createDemoRoadmap(Long userId) {
+        // 将其他路线图设为非活跃
+        roadmaps.update(null, Wrappers.<RoadmapPO>lambdaUpdate()
+                .eq(RoadmapPO::getUserId, userId)
+                .set(RoadmapPO::getActive, false));
+
+        RoadmapPO roadmap = new RoadmapPO();
+        roadmap.setId(idGenerator.nextId());
+        roadmap.setUserId(userId);
+        roadmap.setTargetRole("AI Engineer");
+        roadmap.setWeeklyHours(10);
+        roadmap.setActive(true);
+        roadmap.setCreatedAt(Instant.now());
+        roadmaps.insert(roadmap);
+
+        String[][] taskData = {
+                {"1", "Java 集合框架"},
+                {"1", "并发编程基础"},
+                {"1", "JVM 原理"},
+                {"2", "Spring Boot 基础"},
+                {"2", "Spring AI 集成"},
+                {"3", "RAG 系统设计"},
+        };
+        for (String[] td : taskData) {
+            RoadmapTaskPO task = new RoadmapTaskPO();
+            task.setId(idGenerator.nextId());
+            task.setRoadmapId(roadmap.getId());
+            task.setWeek(Integer.parseInt(td[0]));
+            task.setTitle(td[1]);
+            task.setCompleted(false);
+            roadmapTasks.insert(task);
+        }
+        return roadmap.getId();
+    }
+
+    private void createDemoExams(Long roadmapId) {
+        createDemoExam(roadmapId, 1, "Java 基础测验", "检验 Java 集合与并发的掌握程度");
+        createDemoExam(roadmapId, 2, "Spring Boot 测验", "检验 Spring Boot 与 AI 集成能力");
+        createDemoExam(roadmapId, 3, "RAG 系统测验", "检验 RAG 系统设计能力");
+    }
+
+    private void createDemoExam(Long roadmapId, int week, String title, String description) {
+        ExamPO exam = new ExamPO();
+        exam.setId(idGenerator.nextId());
+        exam.setRoadmapId(roadmapId);
+        exam.setWeek(week);
+        exam.setTitle(title);
+        exam.setDescription(description);
+        exam.setQuestionCount(3);
+        exam.setTimeLimitMinutes(30);
+        exam.setPassingScore(60);
+        exam.setCreatedAt(Instant.now());
+        exams.insert(exam);
+
+        createDemoQuestion(exam.getId(), 1, "SINGLE_CHOICE",
+                "ArrayList 与 LinkedList 的主要区别是什么？",
+                List.of("A. ArrayList 基于数组，LinkedList 基于链表",
+                        "B. ArrayList 线程安全，LinkedList 不安全",
+                        "C. ArrayList 只能存储对象，LinkedList 可以存储基本类型",
+                        "D. 没有区别"),
+                "A", "ArrayList 基于动态数组，LinkedList 基于双向链表", 5);
+
+        createDemoQuestion(exam.getId(), 2, "SINGLE_CHOICE",
+                "HashMap 的默认负载因子是多少？",
+                List.of("A. 0.5", "B. 0.65", "C. 0.75", "D. 1.0"),
+                "C", "HashMap 默认负载因子是 0.75，是空间与时间的折中", 5);
+
+        createDemoQuestion(exam.getId(), 3, "MULTI_CHOICE",
+                "以下哪些是线程安全的集合类？",
+                List.of("A. Vector", "B. Hashtable", "C. ConcurrentHashMap", "D. ArrayList"),
+                "A,B,C", "Vector、Hashtable、ConcurrentHashMap 都是线程安全的", 10);
+
+        createDemoQuestion(exam.getId(), 4, "THINKING",
+                "请结合实际项目场景，分析在高并发环境下如何选择合适的集合类？请举例说明。",
+                null, null, "1. 概念准确性：能区分线程安全与非线程安全集合\n2. 方案完整性：覆盖读多写少、写多读少等场景\n3. 代码示例质量：给出实际代码示例\n4. 最佳实践遵循：提及 ConcurrentHashMap、CopyOnWriteArrayList 等\n5. 创新性深度：考虑性能优化、锁粒度等", 10);
+    }
+
+    private void createDemoQuestion(Long examId, int order, String type, String content,
+                                    List<String> options, String answer, String explanation, int xp) {
+        ExamQuestionPO q = new ExamQuestionPO();
+        q.setId(idGenerator.nextId());
+        q.setExamId(examId);
+        q.setQuestionType(type);
+        q.setOrderNum(order);
+        q.setContent(content);
+        try {
+            q.setOptions(options != null ? objectMapper.writeValueAsString(options) : null);
+            q.setCorrectAnswer(answer != null ? objectMapper.writeValueAsString(answer) : null);
+        } catch (Exception e) {
+            q.setOptions("[]");
+            q.setCorrectAnswer("\"\"");
+        }
+        q.setExplanation(explanation);
+        q.setXpReward(xp);
+        q.setCreatedAt(Instant.now());
+        questions.insert(q);
     }
 
     // ========== 测验管理 ==========
@@ -145,17 +280,31 @@ public class ExamService {
         RoadmapPO roadmap = roadmaps.selectById(roadmapId);
         if (roadmap == null) throw new BusinessException(ErrorCode.NOT_FOUND, "Roadmap not found");
 
-        // 解析 roadmap JSON 获取各周信息
-        List<Map<String, Object>> weeks = parseRoadmapWeeks(roadmap.getRoadmap());
+        // 获取所有任务并按周分组
+        List<RoadmapTaskPO> allTasks = roadmapTasks.selectList(Wrappers.<RoadmapTaskPO>lambdaQuery()
+                .eq(RoadmapTaskPO::getRoadmapId, roadmapId)
+                .orderByAsc(RoadmapTaskPO::getWeek));
+
+        if (allTasks.isEmpty()) {
+            throw new BusinessException(ErrorCode.BAD_REQUEST, "Roadmap has no tasks to generate exams from");
+        }
+
+        // 按周分组
+        Map<Integer, List<RoadmapTaskPO>> tasksByWeek = new HashMap<>();
+        for (RoadmapTaskPO task : allTasks) {
+            tasksByWeek.computeIfAbsent(task.getWeek() != null ? task.getWeek() : 1, k -> new ArrayList<>()).add(task);
+        }
+
         List<Exam> generated = new ArrayList<>();
+        List<Integer> weeks = new ArrayList<>(tasksByWeek.keySet());
+        Collections.sort(weeks);
 
-        for (int i = 0; i < weeks.size(); i++) {
-            Map<String, Object> week = weeks.get(i);
-            int weekNum = i + 1;
-            String theme = (String) week.getOrDefault("theme", "第" + weekNum + "周");
-            String goals = ((List<String>) week.getOrDefault("objectives", List.of())).toString();
+        for (int week : weeks) {
+            List<RoadmapTaskPO> weekTasks = tasksByWeek.get(week);
+            String theme = weekTasks.get(0).getTitle();
+            String goals = weekTasks.stream().map(RoadmapTaskPO::getTitle).collect(Collectors.joining(", "));
 
-            Exam exam = generateSingleExam(roadmapId, weekNum, theme, goals);
+            Exam exam = generateSingleExam(roadmapId, week, theme, goals);
             generated.add(exam);
         }
         return generated;
@@ -178,10 +327,11 @@ public class ExamService {
         }
     }
 
+    @SuppressWarnings("unchecked")
     private Exam parseAndSaveExam(String response, Long roadmapId, int week) {
         try {
             String json = extractJson(response);
-            Map<?, ?> data = objectMapper.readValue(json, Map.class);
+            Map<String, Object> data = (Map<String, Object>) objectMapper.readValue(json, Map.class);
 
             ExamPO exam = new ExamPO();
             exam.setId(idGenerator.nextId());
@@ -195,7 +345,7 @@ public class ExamService {
             exams.insert(exam);
 
             // 插入题目
-            List<Map<String, Object>> questionList = (List<Map<String, Object>>) data.getOrDefault("questions", List.of());
+            List<Map<String, Object>> questionList = parseQuestionList(data.get("questions"));
             for (Map<String, Object> q : questionList) {
                 ExamQuestionPO qPo = new ExamQuestionPO();
                 qPo.setId(idGenerator.nextId());
@@ -221,6 +371,14 @@ public class ExamService {
         } catch (Exception e) {
             return createFallbackExam(roadmapId, week, "第" + week + "周");
         }
+    }
+
+    @SuppressWarnings("unchecked")
+    private List<Map<String, Object>> parseQuestionList(Object questionsObj) {
+        if (questionsObj instanceof List) {
+            return (List<Map<String, Object>>) questionsObj;
+        }
+        return List.of();
     }
 
     private Exam createFallbackExam(Long roadmapId, int week, String theme) {
@@ -315,8 +473,10 @@ public class ExamService {
         List<AnswerDetail> answerDetails = new ArrayList<>();
         List<Map<String, Object>> thinkingAnswers = new ArrayList<>();
 
-        Map<Long, ExamQuestionPO> questionMap = questionList.stream()
-                .collect(Collectors.toMap(ExamQuestionPO::getId, q -> q));
+        Map<Long, ExamQuestionPO> questionMap = new HashMap<>();
+        for (ExamQuestionPO q : questionList) {
+            questionMap.put(q.getId(), q);
+        }
 
         for (AnswerItem answer : request.answers()) {
             ExamQuestionPO q = questionMap.get(answer.questionId());
@@ -461,41 +621,42 @@ public class ExamService {
                     .isNotNull(ExamRecordPO::getCompletedAt));
 
             if (completed.isEmpty()) {
-                weekMastery.add(Map.of(
-                        "week", exam.getWeek(),
-                        "score", (Object) null,
-                        "level", "NOT_TESTED",
-                        "attempts", 0,
-                        "best_score", (Object) null,
-                        "last_exam_at", (Object) null
-                ));
+                Map<String, Object> notTested = new HashMap<>();
+                notTested.put("week", exam.getWeek());
+                notTested.put("score", null);
+                notTested.put("level", "NOT_TESTED");
+                notTested.put("attempts", 0);
+                notTested.put("best_score", null);
+                notTested.put("last_exam_at", null);
+                weekMastery.add(notTested);
             } else {
                 int best = completed.stream().mapToInt(ExamRecordPO::getScore).max().orElse(0);
                 totalScore += best;
                 testedWeeks++;
-                weekMastery.add(Map.of(
-                        "week", exam.getWeek(),
-                        "score", best,
-                        "level", getMasteryLevel(best),
-                        "attempts", completed.size(),
-                        "best_score", best,
-                        "last_exam_at", completed.get(0).getCompletedAt()
-                ));
+                Map<String, Object> tested = new HashMap<>();
+                tested.put("week", exam.getWeek());
+                tested.put("score", best);
+                tested.put("level", getMasteryLevel(best));
+                tested.put("attempts", completed.size());
+                tested.put("best_score", best);
+                tested.put("last_exam_at", completed.get(0).getCompletedAt());
+                weekMastery.add(tested);
             }
         }
 
         int overallScore = testedWeeks > 0 ? totalScore / testedWeeks : 0;
-        return Map.of(
-                "overall_score", overallScore,
-                "overall_level", getMasteryLevel(overallScore),
-                "tested_weeks", testedWeeks,
-                "total_weeks", examList.size(),
-                "week_mastery", weekMastery
-        );
+        Map<String, Object> result = new HashMap<>();
+        result.put("overall_score", overallScore);
+        result.put("overall_level", getMasteryLevel(overallScore));
+        result.put("tested_weeks", testedWeeks);
+        result.put("total_weeks", examList.size());
+        result.put("week_mastery", weekMastery);
+        return result;
     }
 
     // ========== AI 评分 ==========
 
+    @SuppressWarnings("unchecked")
     private ThinkingGradeResult gradeThinkingAnswers(List<Map<String, Object>> thinkingAnswers) {
         int totalScore = 0;
         int totalMaxScore = 0;
@@ -507,11 +668,10 @@ public class ExamService {
                 String prompt = String.format(THINKING_GRADE_PROMPT,
                         answer.get("question"), answer.get("explanation"), answer.get("answer"));
                 String response = aiClient.chat("你是一个严格的评分专家。只返回 JSON。", prompt);
-                Map<?, ?> result = objectMapper.readValue(extractJson(response), Map.class);
+                Map<String, Object> result = (Map<String, Object>) objectMapper.readValue(extractJson(response), Map.class);
 
                 int score = ((Number) result.getOrDefault("score", 5)).intValue();
                 String feedback = (String) result.getOrDefault("feedback", "回答完成");
-                @SuppressWarnings("unchecked")
                 Map<String, Integer> dimensions = (Map<String, Integer>) result.getOrDefault("dimension_scores", Map.of());
 
                 totalScore += score;
@@ -536,14 +696,16 @@ public class ExamService {
 
     private boolean checkChoiceAnswer(String correctAnswerJson, Object userAnswer) {
         try {
+            // 正确答案可能是 "A"（单选字符串）或 "A,B,C"（多选用逗号分隔的字符串）
             String correct = objectMapper.readValue(correctAnswerJson, String.class);
             if (userAnswer instanceof String) {
                 return correct.equalsIgnoreCase((String) userAnswer);
             } else if (userAnswer instanceof List) {
-                List<String> correctList = objectMapper.readValue(correctAnswerJson,
-                        objectMapper.getTypeFactory().constructCollectionType(List.class, String.class));
-                List<String> userList = ((List<?>) userAnswer).stream().map(Object::toString).toList();
-                return new java.util.HashSet<>(correctList).equals(new java.util.HashSet<>(userList));
+                // 多选：将逗号分隔的字符串拆分为集合，与用户答案比较
+                Set<String> correctSet = new HashSet<>(Arrays.asList(correct.split(",")));
+                Set<String> userSet = ((List<?>) userAnswer).stream()
+                        .map(Object::toString).map(String::trim).collect(Collectors.toSet());
+                return correctSet.equals(userSet);
             }
         } catch (Exception e) {
             return false;
@@ -556,18 +718,6 @@ public class ExamService {
         if (score >= 75) return "GOOD";
         if (score >= 60) return "PASS";
         return "FAIL";
-    }
-
-    @SuppressWarnings("unchecked")
-    private List<Map<String, Object>> parseRoadmapWeeks(String roadmapJson) {
-        if (roadmapJson == null || roadmapJson.isBlank()) return List.of();
-        try {
-            Map<String, Object> roadmap = objectMapper.readValue(roadmapJson, Map.class);
-            List<Map<String, Object>> weeks = (List<Map<String, Object>>) roadmap.getOrDefault("weeks", List.of());
-            return weeks != null ? weeks : List.of();
-        } catch (Exception e) {
-            return List.of();
-        }
     }
 
     private String extractJson(String text) {
@@ -586,11 +736,11 @@ public class ExamService {
         }
     }
 
-    @SuppressWarnings("unchecked")
     private List<AnswerDetail> parseAnswers(String answersJson) {
         if (answersJson == null || answersJson.isBlank()) return List.of();
         try {
-            return objectMapper.readValue(answersJson, List.class);
+            return objectMapper.readValue(answersJson,
+                    objectMapper.getTypeFactory().constructCollectionType(List.class, AnswerDetail.class));
         } catch (Exception e) {
             return List.of();
         }
@@ -619,11 +769,42 @@ public class ExamService {
     private List<QuestionOption> parseOptions(String json) {
         if (json == null || json.isBlank()) return null;
         try {
-            List<Map<String, Object>> list = objectMapper.readValue(json, List.class);
-            return list.stream().map(m -> new QuestionOption((String) m.get("key"), (String) m.get("content"))).toList();
+            List<?> list = objectMapper.readValue(json, List.class);
+            if (list.isEmpty()) return List.of();
+            // 兼容两种格式：
+            // 1. 对象数组 [{"key":"A","content":"选项A"}, ...]
+            // 2. 字符串数组 ["A. 选项A", "B. 选项B", ...]
+            if (list.get(0) instanceof Map) {
+                return list.stream()
+                        .map(m -> (Map<String, Object>) m)
+                        .map(m -> new QuestionOption((String) m.get("key"), (String) m.get("content")))
+                        .toList();
+            } else {
+                return list.stream()
+                        .map(String::valueOf)
+                        .map(ExamService::parseOptionString)
+                        .filter(java.util.Objects::nonNull)
+                        .toList();
+            }
         } catch (Exception e) {
             return null;
         }
+    }
+
+    /**
+     * 将 "A. 选项内容" 或 "A、选项内容" 解析为 QuestionOption。
+     * 如果没有识别到选项字母前缀，则 key 为空字符串。
+     */
+    private static QuestionOption parseOptionString(String raw) {
+        if (raw == null) return null;
+        String trimmed = raw.trim();
+        // 匹配 "A." "A、" "A)" "A]" 等选项前缀
+        java.util.regex.Matcher matcher = java.util.regex.Pattern.compile("^([A-Z])[.、)\\]：:]\\s*(.+)$").matcher(trimmed);
+        if (matcher.matches()) {
+            return new QuestionOption(matcher.group(1), matcher.group(2));
+        }
+        // 无前缀时整体作为 content
+        return new QuestionOption("", trimmed);
     }
 
     private ExamRecord toRecord(ExamRecordPO po, List<AnswerDetail> answers) {

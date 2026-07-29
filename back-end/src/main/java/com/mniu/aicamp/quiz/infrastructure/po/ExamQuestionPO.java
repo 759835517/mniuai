@@ -4,7 +4,7 @@ import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
-import com.baomidou.mybatisplus.extension.handlers.JacksonTypeHandler;
+import com.mniu.aicamp.interview.infrastructure.typehandler.JsonbTypeHandler;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -20,9 +20,9 @@ public class ExamQuestionPO {
     private String questionType;
     private Integer orderNum;
     private String content;
-    @TableField(typeHandler = JacksonTypeHandler.class)
+    @TableField(typeHandler = JsonbTypeHandler.class)
     private String options;
-    @TableField(typeHandler = JacksonTypeHandler.class)
+    @TableField(typeHandler = JsonbTypeHandler.class)
     private String correctAnswer;
     private String explanation;
     private Integer xpReward;

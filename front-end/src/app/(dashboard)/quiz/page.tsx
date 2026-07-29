@@ -1,13 +1,15 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { quizApi } from "@/lib/api/quiz";
+import { roadmapApi } from "@/lib/api/roadmap";
 import type { Exam, MasterySummary, WeekMastery } from "@/lib/types/quiz";
-import { ClipboardCheck, Trophy, Target, ChevronRight, Loader2 } from "lucide-react";
+import type { LearningRoadmap } from "@/lib/types/roadmap";
+import { ClipboardCheck, Trophy, Target, ChevronRight, Loader2, PlusCircle } from "lucide-react";
 
 const levelLabels: Record<string, { label: string; color: string }> = {
   MASTERY: { label: "精通", color: "bg-purple-500/20 text-purple-400" },
@@ -18,7 +20,7 @@ const levelLabels: Record<string, { label: string; color: string }> = {
 };
 
 function WeekMasteryBadge({ week }: { week: WeekMastery }) {
-  const info = levelLabels[week.level] || levelLabels.NOT_TESTED;
+  const info = levelLabels[week.level] ?? levelLabels.NOT_TESTED ?? { label: "未知", color: "bg-[#30363D] text-[#8B949E]" };
   return (
     <div className="flex flex-col items-center gap-1">
       <span className={`rounded-full px-3 py-1 text-xs font-medium ${info.color}`}>
@@ -34,27 +36,60 @@ function WeekMasteryBadge({ week }: { week: WeekMastery }) {
 
 export default function QuizPage() {
   const router = useRouter();
+  const [roadmap, setRoadmap] = useState<LearningRoadmap | null>(null);
   const [exams, setExams] = useState<Exam[]>([]);
   const [mastery, setMastery] = useState<MasterySummary | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [creating, setCreating] = useState(false);
 
-  useEffect(() => {
-    // Use a default roadmap for demo (in real app, user selects roadmap)
-    const roadmapId = "1";
-    Promise.all([
+  // Load exams for a given roadmap id
+  const loadExamsForRoadmap = useCallback((roadmapId: string) => {
+    return Promise.all([
       quizApi.listByRoadmap(roadmapId),
       quizApi.getMastery(roadmapId),
-    ])
-      .then(([examsRes, masteryRes]) => {
-        setExams(examsRes);
-        setMastery(masteryRes);
+    ]).then(([examsRes, masteryRes]) => {
+      setExams(examsRes);
+      setMastery(masteryRes);
+    });
+  }, []);
+
+  // Create a demo roadmap + exams via backend init-demo endpoint
+  const createDemoRoadmap = useCallback(async () => {
+    setCreating(true);
+    try {
+      // Backend creates demo roadmap + exams in one shot (no AI dependency)
+      const { roadmapId } = await quizApi.initDemo();
+      // Fetch the active roadmap to display
+      const active = await roadmapApi.getActive();
+      setRoadmap(active);
+      await loadExamsForRoadmap(roadmapId);
+    } catch (e) {
+      setError((e as Error).message || "创建演示数据失败");
+    } finally {
+      setCreating(false);
+    }
+  }, [loadExamsForRoadmap]);
+
+  useEffect(() => {
+    // First fetch the user's active roadmap, then load exams for it
+    roadmapApi.getActive()
+      .then((activeRoadmap) => {
+        if (!activeRoadmap) {
+          setRoadmap(null);
+          setLoading(false);
+          return;
+        }
+        setRoadmap(activeRoadmap);
+        return loadExamsForRoadmap(activeRoadmap.id);
       })
-      .catch(() => {
+      .catch((e) => {
         setExams([]);
         setMastery(null);
+        setError(e?.message || "加载失败");
       })
       .finally(() => setLoading(false));
-  }, []);
+  }, [loadExamsForRoadmap]);
 
   if (loading) {
     return (
@@ -64,7 +99,41 @@ export default function QuizPage() {
     );
   }
 
-  const overallInfo = mastery ? levelLabels[mastery.overallLevel] : null;
+  // No roadmap: offer to create a demo one automatically
+  if (!roadmap) {
+    return (
+      <div className="mx-auto max-w-5xl space-y-6">
+        <div className="flex items-center gap-3">
+          <ClipboardCheck className="h-6 w-6 text-[#3B82F6]" />
+          <h1 className="text-2xl font-bold">测验考试</h1>
+        </div>
+        <Card className="border-[#30363D] bg-[#161B22] p-8 text-center">
+          <p className="text-[#8B949E] mb-4">您还没有学习路线图</p>
+          <div className="flex flex-col sm:flex-row gap-3 justify-center">
+            <Button
+              className="bg-[#3B82F6]"
+              onClick={createDemoRoadmap}
+              disabled={creating}
+            >
+              {creating ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <PlusCircle className="mr-2 h-4 w-4" />
+              )}
+              {creating ? "创建中..." : "生成演示路线图"}
+            </Button>
+            <Link href="/roadmap">
+              <Button variant="outline">
+                自定义路线图
+              </Button>
+            </Link>
+          </div>
+        </Card>
+      </div>
+    );
+  }
+
+  const overallInfo = mastery ? (levelLabels[mastery.overallLevel] ?? null) : null;
 
   return (
     <div className="mx-auto max-w-5xl space-y-6">
@@ -85,7 +154,7 @@ export default function QuizPage() {
             <div className="rounded-lg bg-[#0D1117] p-4 text-center">
               <p className="text-3xl font-bold text-[#3B82F6]">{mastery.overallScore}</p>
               <p className="text-sm text-[#8B949E]">综合得分</p>
-              {overallInfo && (
+              {overallInfo != null && (
                 <span className={`mt-2 inline-block rounded px-2 py-0.5 text-xs ${overallInfo.color}`}>
                   {overallInfo.label}
                 </span>
@@ -122,7 +191,7 @@ export default function QuizPage() {
           <div className="grid gap-3">
             {exams.map((exam) => {
               const weekInfo = mastery?.weekMastery.find((w) => w.week === exam.week);
-              const info = weekInfo ? levelLabels[weekInfo.level] : null;
+              const info = weekInfo ? (levelLabels[weekInfo.level] ?? null) : null;
               return (
                 <Card key={exam.id} className="border-[#30363D] bg-[#161B22] p-4">
                   <div className="flex items-center justify-between">

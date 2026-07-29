@@ -120,7 +120,7 @@ public class QuizDataSeeder {
         exam.setWeek(week);
         exam.setTitle(title);
         exam.setDescription(description);
-        exam.setQuestionCount(3);
+        exam.setQuestionCount(4);
         exam.setTimeLimitMinutes(30);
         exam.setPassingScore(60);
         exam.setCreatedAt(Instant.now());
@@ -144,6 +144,12 @@ public class QuizDataSeeder {
                 "以下哪些是线程安全的集合类？",
                 List.of("A. Vector", "B. Hashtable", "C. ConcurrentHashMap", "D. ArrayList"),
                 "A,B,C", "Vector、Hashtable、ConcurrentHashMap 都是线程安全的", 10);
+
+        createQuestion(exam.getId(), 4, "THINKING",
+                "请结合实际项目场景，分析在高并发环境下如何选择合适的集合类？请举例说明。",
+                null, null,
+                "1. 概念准确性：能区分线程安全与非线程安全集合\n2. 方案完整性：覆盖读多写少、写多读少等场景\n3. 代码示例质量：给出实际代码示例\n4. 最佳实践遵循：提及 ConcurrentHashMap、CopyOnWriteArrayList 等\n5. 创新性深度：考虑性能优化、锁粒度等",
+                10);
     }
 
     private void createQuestion(Long examId, int order, String type, String content,
@@ -155,8 +161,8 @@ public class QuizDataSeeder {
         q.setOrderNum(order);
         q.setContent(content);
         try {
-            q.setOptions(objectMapper.writeValueAsString(options));
-            q.setCorrectAnswer(objectMapper.writeValueAsString(answer));
+            q.setOptions(options != null ? objectMapper.writeValueAsString(options) : null);
+            q.setCorrectAnswer(answer != null ? objectMapper.writeValueAsString(answer) : null);
         } catch (Exception e) {
             q.setOptions("[]");
             q.setCorrectAnswer("\"\"");

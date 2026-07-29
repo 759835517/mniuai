@@ -1,60 +1,44 @@
 "use client";
 
-import { useEffect, useRef, useCallback, useState } from "react";
+import { useEffect, useCallback } from "react";
 import { useParams } from "next/navigation";
 import { Card } from "@/components/ui/card";
 import { useCourseStore } from "@/lib/stores/courseStore";
-import { useHeartbeat } from "@/hooks/useHeartbeat";
+import { useVideoHeartbeat } from "@/hooks/useVideoHeartbeat";
+import { HlsPlayer } from "@/components/video/HlsPlayer";
 import { toast } from "sonner";
 import Loading from "@/components/shared/Loading";
 
 export default function LessonPage() {
   const { id, lessonId } = useParams<{ id: string; lessonId: string }>();
   const { playUrl, lessonProgress, fetchPlayUrl, fetchLessonProgress } = useCourseStore();
-  const { updatePosition, reportSeek } = useHeartbeat(lessonId, playUrl?.durationSec ?? 0);
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const seekingRef = useRef<number | null>(null);
-  const [ready, setReady] = useState(false);
+  const { updatePosition, reportSeek } = useVideoHeartbeat({ lessonId });
 
   useEffect(() => {
     fetchPlayUrl(lessonId);
     fetchLessonProgress(lessonId);
   }, [lessonId, fetchPlayUrl, fetchLessonProgress]);
 
-  // 断点续播
-  useEffect(() => {
-    if (videoRef.current && playUrl && playUrl.lastPositionSec > 0 && !ready) {
-      videoRef.current.currentTime = playUrl.lastPositionSec;
-      setReady(true);
-    }
-  }, [playUrl, ready]);
+  const handleTimeUpdate = useCallback(
+    (currentTime: number, duration: number) => {
+      updatePosition(currentTime, 1);
+    },
+    [updatePosition]
+  );
 
-  const handleSeeking = useCallback(() => {
-    seekingRef.current = videoRef.current?.currentTime ?? 0;
-  }, []);
-
-  const handleSeeked = useCallback(() => {
-    const from = seekingRef.current;
-    const to = videoRef.current?.currentTime ?? 0;
-    if (from !== null && Math.abs(to - from) > 30) {
-      reportSeek(to, videoRef.current?.playbackRate ?? 1);
-    }
-    seekingRef.current = null;
-  }, [reportSeek]);
-
-  const handleRateChange = useCallback(() => {
-    const rate = videoRef.current?.playbackRate ?? 1;
-    if (rate > 2.0) {
-      toast.warning("倍速超过 2x 将不计入学习进度");
-    }
-    updatePosition(videoRef.current?.currentTime ?? 0, rate);
-  }, [updatePosition]);
-
-  const handleTimeUpdate = useCallback(() => {
-    updatePosition(videoRef.current?.currentTime ?? 0, videoRef.current?.playbackRate ?? 1);
-  }, [updatePosition]);
+  const handleRateChange = useCallback(
+    (rate: number) => {
+      if (rate > 2.0) {
+        toast.warning("倍速超过 2x 将不计入学习进度");
+      }
+    },
+    []
+  );
 
   if (!playUrl) return <Loading text="加载视频..." className="mt-12" />;
+
+  // 优先使用 HLS manifest URL，否则 fallback 到 MP4
+  const streamSrc = playUrl.hlsManifestUrl ?? playUrl.videoUrl;
 
   return (
     <div className="space-y-6">
@@ -63,15 +47,11 @@ export default function LessonPage() {
       </button>
 
       <Card className="border-[#30363D] bg-[#161B22] p-4">
-        <video
-          ref={videoRef}
-          src={playUrl.videoUrl}
-          controls
-          className="w-full rounded bg-black"
-          onSeeking={handleSeeking}
-          onSeeked={handleSeeked}
-          onRateChange={handleRateChange}
+        <HlsPlayer
+          src={streamSrc}
+          resumePosition={playUrl.lastPositionSec}
           onTimeUpdate={handleTimeUpdate}
+          onRateChange={handleRateChange}
         />
       </Card>
 

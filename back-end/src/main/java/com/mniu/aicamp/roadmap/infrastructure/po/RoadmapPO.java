@@ -24,4 +24,10 @@ public class RoadmapPO {
     private Boolean active;
     /** Row creation time. */
     private Instant createdAt;
+    /** Overall mastery score (0-100) from exam results. */
+    private Integer masteryScore;
+    /** Mastery level derived from score: MASTERY/GOOD/PASS/FAIL/NOT_TESTED. */
+    private String masteryLevel;
+    /** Last time an exam was completed for this roadmap. */
+    private Instant lastExamAt;
 }

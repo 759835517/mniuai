@@ -31,6 +31,14 @@ public class ExamController {
         this.service = service;
     }
 
+    // ========== 演示数据初始化 ==========
+
+    @PostMapping("/demo/init")
+    ApiResponse<Map<String, Long>> initDemo() {
+        Long roadmapId = service.initDemoData(CurrentUsers.require().id());
+        return ApiResponse.ok(Map.of("roadmapId", roadmapId));
+    }
+
     // ========== 测验管理（管理端） ==========
 
     @PostMapping("/admin/exams/generate")

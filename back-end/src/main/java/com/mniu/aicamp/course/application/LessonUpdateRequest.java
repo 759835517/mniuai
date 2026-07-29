@@ -6,6 +6,7 @@ import jakarta.validation.constraints.Size;
 public record LessonUpdateRequest(@NotBlank @Size(max = 200) String title,
                                   String description,
                                   String videoUrl,
+                                  String hlsManifestUrl,
                                   int videoDuration,
                                   String thumbnailUrl,
                                   int sortOrder,

@@ -2,6 +2,7 @@
 
 import { useState, FormEvent } from "react";
 import Link from "next/link";
+import { authApi, setTokens } from "@/lib/api";
 
 type Mode = "login" | "register";
 
@@ -32,24 +33,13 @@ export default function LoginPage() {
 
     setSubmitting(true);
     try {
-      const endpoint =
-        mode === "login" ? "/api/v1/auth/login" : "/api/v1/auth/register";
-      const body =
-        mode === "login"
-          ? { email, password }
-          : { email, password, name };
-
-      const res = await fetch(endpoint, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      });
-
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.message || (mode === "login" ? "登录失败" : "注册失败"));
+      if (mode === "login") {
+        const res = await authApi.login({ email, password });
+        setTokens(res.data.accessToken, res.data.refreshToken);
+      } else {
+        const res = await authApi.register({ email, password, name });
+        setTokens(res.data.accessToken, res.data.refreshToken);
       }
-
       window.location.href = "/tools/lesson";
     } catch (err) {
       setError(err instanceof Error ? err.message : "请求失败，请稍后重试");

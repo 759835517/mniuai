@@ -1,4 +1,4 @@
-import type { AxiosInstance } from "../createApiClient";
+import type { ApiClient } from "../createApiClient";
 
 // ===== 类型定义 =====
 
@@ -137,7 +137,7 @@ export interface GuaranteeCheckDTO {
 
 // ===== API 模块 =====
 
-export function createEduApi(client: AxiosInstance) {
+export function createEduApi(client: ApiClient) {
   return {
     // AI 生成教案
     generateLesson: (data: LessonGenerateRequest) =>

@@ -1,4 +1,4 @@
-import type { AxiosInstance } from "../createApiClient";
+import type { ApiClient } from "../createApiClient";
 
 // ===== 类型定义 =====
 
@@ -99,9 +99,134 @@ export interface Enrollment {
   enrolledAt: string;
 }
 
+export interface AiTutorRequest {
+  message: string;
+  lessonId?: string;
+  code?: string;
+  history?: AiTutorHistoryMessage[];
+}
+
+export interface AiTutorHistoryMessage {
+  role: string;
+  content: string;
+}
+
+export interface AiTutorResponse {
+  reply: string;
+  suggestedAction: string;
+  relatedTopics: string[];
+}
+
+export interface PortfolioDTO {
+  userId: string;
+  username: string;
+  school: string;
+  level: string;
+  pathName: string;
+  bio: string;
+  skills: string[];
+  projects: ProjectItemDTO[];
+  stats: PortfolioStatsDTO;
+}
+
+export interface ProjectItemDTO {
+  id: string;
+  name: string;
+  description: string;
+  techStack: string[];
+  githubUrl: string;
+  demoUrl: string;
+}
+
+export interface PortfolioStatsDTO {
+  practicePassed: number;
+  interviewRounds: number;
+  completedWeeks: number;
+  streakDays: number;
+}
+
+export interface ResumeRequest {
+  name: string;
+  school?: string;
+  major?: string;
+  graduationDate?: string;
+  email?: string;
+  phone?: string;
+  github?: string;
+  bio?: string;
+  skills?: string[];
+  projects?: ProjectExperience[];
+  experiences?: string[];
+}
+
+export interface ProjectExperience {
+  name: string;
+  role?: string;
+  description?: string;
+  techStack?: string[];
+}
+
+export interface ResumeResponse {
+  markdownContent: string;
+  sections: ResumeSection[];
+}
+
+export interface ResumeSection {
+  title: string;
+  content: string;
+}
+
+export interface SubscriptionPlanDTO {
+  id: string;
+  name: string;
+  price: string;
+  period: string;
+  highlight: boolean;
+  tag: string | null;
+  features: string[];
+}
+
+export interface GuaranteeApplicationRequest {
+  pathSlug: string;
+  agreementVersion?: string;
+}
+
+export interface GuaranteeApplicationDTO {
+  id: string;
+  userId: string;
+  pathSlug: string;
+  pathName: string;
+  status: string;
+  agreementVersion: string;
+  appliedAt: string;
+  expiresAt: string;
+}
+
+export interface EmploymentReportRequest {
+  companyName: string;
+  position?: string;
+  salary?: string;
+  offerDate?: string;
+  offerImageUrl?: string;
+  jobType?: string;
+}
+
+export interface EmploymentReportDTO {
+  id: string;
+  userId: string;
+  companyName: string;
+  position: string | null;
+  salary: string | null;
+  offerDate: string | null;
+  offerImageUrl: string | null;
+  jobType: string | null;
+  status: string;
+  reportedAt: string;
+}
+
 // ===== API 模块 =====
 
-export function createCampusApi(client: AxiosInstance) {
+export function createCampusApi(client: ApiClient) {
   return {
     // 学习路径列表
     listPaths: () => client.get<LearningPath[]>("/campus/paths"),
@@ -133,5 +258,29 @@ export function createCampusApi(client: AxiosInstance) {
     // 对赌进度详情
     getGuaranteeProgress: (slug: string) =>
       client.get<GuaranteeProgress>("/campus/guarantee/progress", { params: { slug } }),
+
+    // AI 助教对话
+    chatWithTutor: (data: AiTutorRequest) =>
+      client.post<AiTutorResponse>("/campus/ai/tutor", data),
+
+    // 获取作品集
+    getPortfolio: () =>
+      client.get<PortfolioDTO>("/campus/portfolio"),
+
+    // AI 生成简历
+    generateResume: (data: ResumeRequest) =>
+      client.post<ResumeResponse>("/campus/resume/generate", data),
+
+    // 订阅计划列表
+    listSubscriptionPlans: () =>
+      client.get<SubscriptionPlanDTO[]>("/campus/subscription/plans"),
+
+    // 申请对赌协议
+    applyForGuarantee: (data: GuaranteeApplicationRequest) =>
+      client.post<GuaranteeApplicationDTO>("/campus/guarantee/apply", data),
+
+    // 就业上报
+    reportEmployment: (data: EmploymentReportRequest) =>
+      client.post<EmploymentReportDTO>("/campus/employment/report", data),
   };
 }

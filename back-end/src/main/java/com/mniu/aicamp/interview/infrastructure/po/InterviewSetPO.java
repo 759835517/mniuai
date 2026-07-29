@@ -4,7 +4,7 @@ import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
-import com.baomidou.mybatisplus.extension.handlers.JacksonTypeHandler;
+import com.mniu.aicamp.interview.infrastructure.typehandler.JsonbTypeHandler;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -20,7 +20,7 @@ public class InterviewSetPO {
     private String description;
     private String targetRole;
     private String difficulty;
-    @TableField(typeHandler = JacksonTypeHandler.class)
+    @TableField(typeHandler = JsonbTypeHandler.class)
     private String questionIds;
     private Integer durationMinutes;
     private String status;

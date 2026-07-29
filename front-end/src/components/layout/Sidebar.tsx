@@ -6,20 +6,28 @@ import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import {
-  LayoutDashboard, Map, MessagesSquare, FolderKanban, Code2, User, Zap,
+  LayoutDashboard, Map, MessagesSquare, FolderKanban, Code2, User, Zap, Mic, ClipboardCheck,
+  BookOpen, Settings, FileText,
 } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
+import { useAuthStore } from "@/lib/stores/authStore";
 
 const navItems = [
   { label: "工作台", href: "/dashboard", icon: LayoutDashboard },
   { label: "路线图", href: "/roadmap", icon: Map },
+  { label: "课程中心", href: "/courses", icon: BookOpen },
+  { label: "文章", href: "/articles", icon: FileText },
   { label: "AI 教练", href: "/coach", icon: MessagesSquare },
   { label: "项目", href: "/projects", icon: FolderKanban },
   { label: "代码审查", href: "/review", icon: Code2 },
+  { label: "面试训练营", href: "/interview", icon: Mic },
+  { label: "测验考试", href: "/quiz", icon: ClipboardCheck },
 ];
 
 export default function Sidebar() {
   const pathname = usePathname();
+  const { user } = useAuthStore();
+  const isAdmin = user?.roles?.includes("ADMIN");
 
   return (
     <aside className="hidden lg:fixed lg:inset-y-0 lg:left-0 lg:z-50 lg:flex lg:w-64 lg:flex-col lg:border-r lg:border-[#30363D] lg:bg-[#0D1117]">
@@ -47,6 +55,20 @@ export default function Sidebar() {
               </Link>
             );
           })}
+          {isAdmin && (
+            <Link href="/admin/courses">
+              <Button
+                variant={pathname.startsWith("/admin") ? "secondary" : "ghost"}
+                className={cn(
+                  "w-full justify-start gap-3 text-sm",
+                  pathname.startsWith("/admin") ? "bg-[#1C2128] text-[#F0F6FC]" : "text-[#8B949E] hover:bg-[#161B22] hover:text-[#F0F6FC]"
+                )}
+              >
+                <Settings className="h-4 w-4" />
+                管理后台
+              </Button>
+            </Link>
+          )}
         </nav>
       </ScrollArea>
       <Separator className="bg-[#30363D]" />

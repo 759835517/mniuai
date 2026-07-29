@@ -1,8 +1,10 @@
 package com.mniu.aicamp.article.infrastructure.po;
 
 import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
+import com.mniu.aicamp.interview.infrastructure.typehandler.JsonbTypeHandler;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -20,6 +22,7 @@ public class ArticlePO {
     private String content;
     private String coverUrl;
     private String category;
+    @TableField(typeHandler = JsonbTypeHandler.class)
     private String tags;
     private Long authorId;
     private String status;

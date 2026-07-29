@@ -8,6 +8,10 @@ import type { ChatSession, ChatMessage } from "@/lib/types/coach";
 import type { Project } from "@/lib/types/project";
 import type { CodeReview } from "@/lib/types/review";
 import type { GrowthProfile, Achievement, NotificationItem, GrowthStats } from "@/lib/types/growth";
+import type { CourseSummary, CourseDetail, PlayUrlResponse, ProgressSnapshot } from "@/lib/types/course";
+import type { ArticleSummary, ArticleDetail } from "@/lib/types/article";
+import type { InterviewQuestion, InterviewSet, MockInterview, InterviewSkillProfile } from "@/lib/types/interview";
+import type { Exam, ExamQuestion, ExamRecord, MasterySummary } from "@/lib/types/quiz";
 
 // ---------- helpers ----------
 const now = new Date().toISOString();
@@ -167,3 +171,288 @@ export const mockStats: GrowthStats = {
 
 // ---------- Landing ----------
 export const mockLandingStats = { totalLearners: 2156, totalProjects: 583, totalCoachMessages: 12400 };
+
+// ---------- Courses ----------
+const courseId1 = uuid();
+const courseId2 = uuid();
+
+export const mockCourses: CourseSummary[] = [
+  { id: courseId1, title: "RAG 工程实战", coverUrl: "", category: "AI_BASICS", difficulty: "INTERMEDIATE", totalLessons: 8, totalMinutes: 120, enrolled: true, progressPercent: 25 },
+  { id: courseId2, title: "AI Agent 开发入门", coverUrl: "", category: "AI_BASICS", difficulty: "BEGINNER", totalLessons: 6, totalMinutes: 90, enrolled: false, progressPercent: 0 },
+];
+
+export const mockCourseDetail: CourseDetail = {
+  id: courseId1,
+  title: "RAG 工程实战",
+  description: "从 Embedding 到完整问答系统的实战课程",
+  coverUrl: null,
+  category: "AI_BASICS",
+  difficulty: "INTERMEDIATE",
+  targetAudience: "ENGINEER",
+  totalLessons: 8,
+  totalMinutes: 120,
+  enrolled: true,
+  lessons: [
+    { id: uuid(), title: "第一章：Embedding 基础", thumbnailUrl: null, durationSec: 600, sortOrder: 1, free: true, unlocked: true, completed: true },
+    { id: uuid(), title: "第二章：向量检索", thumbnailUrl: null, durationSec: 900, sortOrder: 2, free: false, unlocked: true, completed: false },
+    { id: uuid(), title: "第三章：RAG 架构", thumbnailUrl: null, durationSec: 1200, sortOrder: 3, free: false, unlocked: true, completed: false },
+  ],
+};
+
+export const mockPlayUrl: PlayUrlResponse = {
+  videoUrl: "https://example.com/sample-video.mp4",
+  hlsManifestUrl: "https://example.com/sample-video/master.m3u8",
+  durationSec: 600,
+  lastPositionSec: 120,
+  completed: false,
+};
+
+export const mockLessonProgress: ProgressSnapshot = {
+  lastPositionSec: 120,
+  validWatchedSec: 100,
+  totalDurationSec: 600,
+  watchRatio: 0.167,
+  completed: false,
+};
+
+// ---------- Articles ----------
+const articleId1 = uuid();
+const articleId2 = uuid();
+const articleId3 = uuid();
+
+const sampleMarkdown = `# 深入理解 React Hooks
+
+React Hooks 是 React 16.8 引入的新特性，它让你在函数组件中使用状态和其他 React 特性。
+
+## 什么是 Hooks
+
+Hooks 是一些可以让你在函数组件里"钩入" React state 及生命周期等特性的函数。
+
+### 为什么需要 Hooks
+
+- **组件间复用状态逻辑困难**
+- **复杂组件变得难以理解**
+- **Class 的 this 绑定问题**
+
+## 常用 Hooks
+
+### useState
+
+\`useState\` 是最基础的 Hook，用于在函数组件中添加状态。
+
+\`\`\`jsx
+const [count, setCount] = useState(0);
+\`\`\`
+
+### useEffect
+
+\`useEffect\` 用于处理副作用，相当于 componentDidMount、componentDidUpdate 和 componentWillUnmount 的组合。
+
+## 总结
+
+Hooks 让函数组件拥有了类组件的能力，同时更加简洁和灵活。`;
+
+export const mockArticles: ArticleSummary[] = [
+  {
+    id: articleId1, title: "深入理解 React Hooks", slug: "react-hooks-deep-dive",
+    summary: "全面介绍 React Hooks 的使用方法和最佳实践", content: sampleMarkdown,
+    coverUrl: null, category: "前端", tags: ["React", "Hooks", "前端"],
+    authorId: mockUser.id, status: "PUBLISHED", targetAudience: "ALL", difficulty: "INTERMEDIATE",
+    readMinutes: 8, viewCount: 1234, likeCount: 89, associatedType: null, associatedId: null,
+    publishedAt: now, createdAt: now,
+  },
+  {
+    id: articleId2, title: "Spring Boot 整合 pgvector 实战", slug: "spring-boot-pgvector",
+    summary: "手把手教你用 Spring Boot + pgvector 构建向量检索应用", content: sampleMarkdown,
+    coverUrl: null, category: "后端", tags: ["Spring Boot", "pgvector", "RAG"],
+    authorId: mockUser.id, status: "PUBLISHED", targetAudience: "ENGINEER", difficulty: "INTERMEDIATE",
+    readMinutes: 12, viewCount: 856, likeCount: 67, associatedType: null, associatedId: null,
+    publishedAt: now, createdAt: now,
+  },
+  {
+    id: articleId3, title: "AI Agent 开发入门指南", slug: "ai-agent-guide",
+    summary: "从零开始构建你的第一个 AI Agent", content: sampleMarkdown,
+    coverUrl: null, category: "AI", tags: ["AI", "Agent", "LLM"],
+    authorId: mockUser.id, status: "DRAFT", targetAudience: "ALL", difficulty: "BEGINNER",
+    readMinutes: 15, viewCount: 0, likeCount: 0, associatedType: null, associatedId: null,
+    publishedAt: null, createdAt: now,
+  },
+];
+
+export const mockArticleDetail: ArticleDetail = {
+  id: articleId1, title: "深入理解 React Hooks", slug: "react-hooks-deep-dive",
+  summary: "全面介绍 React Hooks 的使用方法和最佳实践", content: sampleMarkdown,
+  coverUrl: null, category: "前端", tags: ["React", "Hooks", "前端"],
+  authorName: "AI Learner", targetAudience: "ALL", difficulty: "INTERMEDIATE",
+  readMinutes: 8, viewCount: 1234, likeCount: 89, publishedAt: now, createdAt: now,
+};
+
+// ---------- Interview ----------
+const questionId1 = uuid();
+const questionId2 = uuid();
+const questionId3 = uuid();
+const setId1 = uuid();
+const mockInterviewId1 = uuid();
+
+export const mockQuestions: InterviewQuestion[] = [
+  {
+    id: questionId1, category: "JAVA", subCategory: "COLLECTION", difficulty: "EASY",
+    title: "ArrayList 与 LinkedList 的区别",
+    content: "请详细说明 ArrayList 和 LinkedList 在底层数据结构、随机访问性能、插入删除性能方面的区别。",
+    keyPoints: ["底层数据结构", "时间复杂度", "适用场景"],
+    companies: ["阿里巴巴", "字节跳动"],
+    tags: ["集合", "数据结构"],
+    source: "真题", status: "ACTIVE", viewCount: 256, createdAt: now,
+  },
+  {
+    id: questionId2, category: "JAVA", subCategory: "CONCURRENCY", difficulty: "MEDIUM",
+    title: "synchronized 与 ReentrantLock 的区别",
+    content: "请对比 synchronized 关键字和 ReentrantLock 在锁机制、可中断性、公平性方面的异同。",
+    keyPoints: ["锁升级", "可中断锁", "公平锁"],
+    companies: ["腾讯", "美团"],
+    tags: ["并发", "锁"],
+    source: "真题", status: "ACTIVE", viewCount: 189, createdAt: now,
+  },
+  {
+    id: questionId3, category: "ALGORITHM", subCategory: "DYNAMIC_PROGRAMMING", difficulty: "MEDIUM",
+    title: "最长递增子序列 (LIS)",
+    content: "给定一个整数数组，找到其中最长严格递增子序列的长度。要求 O(n log n)。",
+    keyPoints: ["DP 思路", "二分优化", "边界处理"],
+    companies: ["字节跳动"],
+    tags: ["DP", "二分"],
+    source: "真题", status: "ACTIVE", viewCount: 342, createdAt: now,
+  },
+];
+
+export const mockSets: InterviewSet[] = [
+  {
+    id: setId1, title: "Java 后端一面模拟", description: "覆盖 Java 基础、并发、集合等核心知识点",
+    targetRole: "Java后端工程师", difficulty: "MEDIUM",
+    questionIds: [questionId1, questionId2], durationMinutes: 45, status: "ACTIVE", createdAt: now,
+  },
+];
+
+export const mockInterview: MockInterview = {
+  id: mockInterviewId1, userId: mockUser.id, interviewSetId: setId1,
+  mode: "SET", status: "COMPLETED", overallScore: 75,
+  aiSummary: "整体表现良好，基础知识扎实，部分知识点需要加强。",
+  startedAt: now, completedAt: now, durationSeconds: 1800,
+};
+
+export const mockSkillProfile: InterviewSkillProfile[] = [
+  { id: uuid(), userId: mockUser.id, category: "JAVA", avgScore: 7.5, interviewCount: 3, lastUpdated: now },
+  { id: uuid(), userId: mockUser.id, category: "ALGORITHM", avgScore: 6.0, interviewCount: 2, lastUpdated: now },
+  { id: uuid(), userId: mockUser.id, category: "SYSTEM_DESIGN", avgScore: 5.5, interviewCount: 1, lastUpdated: now },
+];
+
+// ---------- Quiz ----------
+const examId1 = uuid();
+const examId2 = uuid();
+const examQuestionId1 = uuid();
+const examQuestionId2 = uuid();
+const examQuestionId3 = uuid();
+const examQuestionId4 = uuid();
+const examQuestionId5 = uuid();
+const recordId1 = uuid();
+
+export const mockExams: Exam[] = [
+  {
+    id: examId1, roadmapId: "1", week: 1, title: "第1周：Embedding 与向量检索基础",
+    description: "本测验检验你对 Embedding 与向量检索基础的掌握程度",
+    questionCount: 5, timeLimitMinutes: 30, passingScore: 60, createdAt: now,
+  },
+  {
+    id: examId2, roadmapId: "1", week: 2, title: "第2周：检索增强生成 (RAG) 原理",
+    description: "本测验检验你对 RAG 原理的掌握程度",
+    questionCount: 5, timeLimitMinutes: 30, passingScore: 60, createdAt: now,
+  },
+];
+
+export const mockExamQuestions: ExamQuestion[] = [
+  {
+    id: examQuestionId1, examId: examId1, questionType: "SINGLE_CHOICE", orderNum: 1,
+    content: "以下哪项是 Embedding 的主要作用？",
+    options: [
+      { key: "A", content: "将文本转换为数值向量" },
+      { key: "B", content: "压缩文本大小" },
+      { key: "C", content: "加密文本内容" },
+      { key: "D", content: "美化文本显示" },
+    ],
+    explanation: "Embedding 将高维文本映射到低维稠密向量空间，便于语义计算。",
+    xpReward: 5,
+  },
+  {
+    id: examQuestionId2, examId: examId1, questionType: "SINGLE_CHOICE", orderNum: 2,
+    content: "pgvector 是哪个数据库的扩展？",
+    options: [
+      { key: "A", content: "MySQL" },
+      { key: "B", content: "PostgreSQL" },
+      { key: "C", content: "MongoDB" },
+      { key: "D", content: "Redis" },
+    ],
+    explanation: "pgvector 是 PostgreSQL 的向量搜索扩展。",
+    xpReward: 5,
+  },
+  {
+    id: examQuestionId3, examId: examId1, questionType: "MULTI_CHOICE", orderNum: 3,
+    content: "以下哪些是向量相似度计算方法？（多选）",
+    options: [
+      { key: "A", content: "余弦相似度" },
+      { key: "B", content: "欧氏距离" },
+      { key: "C", content: "曼哈顿距离" },
+      { key: "D", content: "哈希冲突" },
+    ],
+    explanation: "余弦相似度、欧氏距离、曼哈顿距离都是常用的向量相似度计算方法。",
+    xpReward: 10,
+  },
+  {
+    id: examQuestionId4, examId: examId1, questionType: "SINGLE_CHOICE", orderNum: 4,
+    content: "在 RAG 系统中，Retriever 的主要职责是什么？",
+    options: [
+      { key: "A", content: "生成最终答案" },
+      { key: "B", content: "从知识库检索相关文档" },
+      { key: "C", content: "处理用户输入" },
+      { key: "D", content: "渲染页面" },
+    ],
+    explanation: "Retriever 负责根据用户查询从知识库中检索相关文档片段。",
+    xpReward: 5,
+  },
+  {
+    id: examQuestionId5, examId: examId1, questionType: "THINKING", orderNum: 5,
+    content: "请描述你在实际项目中如何设计一个 RAG 系统，包括文档分块、Embedding 选择、检索策略等。",
+    options: null,
+    explanation: "评分维度：概念准确性、方案完整性、代码示例质量、最佳实践遵循、创新性深度",
+    xpReward: 10,
+  },
+];
+
+export const mockExamRecord: ExamRecord = {
+  id: recordId1, userId: mockUser.id, examId: examId1,
+  score: 75, passed: true, totalQuestions: 5, correctCount: 3,
+  answers: [
+    { questionId: examQuestionId1, questionType: "SINGLE_CHOICE", userAnswer: "A", isCorrect: true, pointsEarned: 5 },
+    { questionId: examQuestionId2, questionType: "SINGLE_CHOICE", userAnswer: "B", isCorrect: true, pointsEarned: 5 },
+    { questionId: examQuestionId3, questionType: "MULTI_CHOICE", userAnswer: ["A", "B"], isCorrect: false, pointsEarned: 0 },
+    { questionId: examQuestionId4, questionType: "SINGLE_CHOICE", userAnswer: "B", isCorrect: true, pointsEarned: 5 },
+    { questionId: examQuestionId5, questionType: "THINKING", userAnswer: "我会使用滑动窗口分块...", isCorrect: null, pointsEarned: 7 },
+  ],
+  aiEvaluation: {
+    thinkingQuestions: [
+      {
+        questionId: examQuestionId5, score: 7, maxScore: 10,
+        feedback: "回答较完整，涵盖了分块和检索策略，但缺少具体的代码示例。",
+        dimensionScores: { "概念准确性": 2, "方案完整性": 2, "代码示例质量": 1, "最佳实践遵循": 1, "创新性深度": 1 },
+      },
+    ],
+    overallComment: "整体表现良好，基础知识扎实，多选题需要加强。",
+  },
+  startedAt: now, completedAt: now,
+};
+
+export const mockMastery: MasterySummary = {
+  overallScore: 75, overallLevel: "GOOD", testedWeeks: 1, totalWeeks: 2,
+  weekMastery: [
+    { week: 1, score: 75, level: "GOOD", attempts: 1, bestScore: 75, lastExamAt: now },
+    { week: 2, score: null, level: "NOT_TESTED", attempts: 0, bestScore: null, lastExamAt: null },
+  ],
+};

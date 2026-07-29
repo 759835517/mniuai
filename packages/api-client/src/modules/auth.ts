@@ -1,4 +1,4 @@
-import type { AxiosInstance } from "../createApiClient";
+import type { ApiClient } from "../createApiClient";
 
 export interface LoginRequest {
   email: string;
@@ -8,26 +8,25 @@ export interface LoginRequest {
 export interface RegisterRequest {
   email: string;
   password: string;
-  username: string;
+  username?: string;
+  name?: string;
 }
 
 export interface AuthResponse {
-  token: string;
+  accessToken: string;
   refreshToken: string;
-  user: {
-    id: number;
-    email: string;
-    username: string;
-    userType: "CHILD" | "ENGINEER" | "PARENT" | "ADMIN";
-  };
+  tokenType: string;
+  expiresInSeconds: number;
 }
 
-export function createAuthApi(client: AxiosInstance) {
+export function createAuthApi(client: ApiClient) {
   return {
-    login: (data: LoginRequest) => client.post<AuthResponse>("/auth/login", data),
-    register: (data: RegisterRequest) => client.post<AuthResponse>("/auth/register", data),
+    login: (data: LoginRequest) =>
+      client.post<AuthResponse>("/auth/login", data),
+    register: (data: RegisterRequest) =>
+      client.post<AuthResponse>("/auth/register", data),
     logout: () => client.post("/auth/logout"),
     refreshToken: (refreshToken: string) =>
-      client.post<{ token: string }>("/auth/refresh", { refreshToken }),
+      client.post<{ accessToken: string }>("/auth/refresh", { refreshToken }),
   };
 }

@@ -31,6 +31,8 @@ public class UserPO {
     private String goal;
     /** Weekly learning hours the user can invest. */
     private Integer weeklyHours;
+    /** User role: USER / ADMIN */
+    private String role;
     /** Row creation time. */
     private Instant createdAt;
     /** Last profile update time. */

@@ -1,6 +1,7 @@
 package com.mniu.aicamp.course.infrastructure.po;
 
 import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.Getter;
@@ -22,9 +23,11 @@ public class LessonPO {
     private String title;
     private String description;
     private String videoUrl;
+    private String hlsManifestUrl;
     private Integer videoDuration;
     private String thumbnailUrl;
     private Integer sortOrder;
+    @TableField("is_free")
     private Boolean free;
     private Boolean requiresExamPass;
     private String status;

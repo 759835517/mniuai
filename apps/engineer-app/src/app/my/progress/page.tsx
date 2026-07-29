@@ -1,5 +1,8 @@
 "use client";
 
+import { useState, useEffect } from "react";
+import { engineerApi } from "@/lib/api";
+
 const RADAR = [
   { label: "算法", value: 72 },
   { label: "系统设计", value: 55 },
@@ -8,31 +11,45 @@ const RADAR = [
   { label: "面试表达", value: 60 },
 ];
 
-const STATS = [
-  { label: "已刷算法题", value: "148", total: "/ 500" },
-  { label: "实战任务", value: "26", total: "个完成" },
-  { label: "模拟面试", value: "18", total: "轮" },
-  { label: "系统设计", value: "6", total: "道" },
-];
-
-// 近12周活跃热力图（0-4 级）
-const HEATMAP = [
-  [1, 2, 0, 3, 4, 2, 1],
-  [0, 1, 3, 2, 4, 3, 2],
-  [2, 3, 4, 1, 0, 2, 3],
-  [1, 0, 2, 3, 4, 4, 2],
-];
-
 const HEAT_COLORS = ["bg-gray-100", "bg-blue-100", "bg-blue-200", "bg-blue-400", "bg-blue-600"];
 
 export default function ProgressPage() {
+  const [stats, setStats] = useState([
+    { label: "已刷算法题", value: "148", total: "/ 500" },
+    { label: "实战任务", value: "26", total: "个完成" },
+    { label: "模拟面试", value: "18", total: "轮" },
+    { label: "系统设计", value: "6", total: "道" },
+  ]);
+  const [heatmap, setHeatmap] = useState([
+    [1, 2, 0, 3, 4, 2, 1],
+    [0, 1, 3, 2, 4, 3, 2],
+    [2, 3, 4, 1, 0, 2, 3],
+    [1, 0, 2, 3, 4, 4, 2],
+  ]);
+
+  useEffect(() => {
+    engineerApi
+      .getGuaranteeProgress()
+      .then((res) => {
+        setStats([
+          { label: "已刷算法题", value: String(res.solvedProblems), total: `/${res.requiredProblems}` },
+          { label: "实战任务", value: String(res.completedTasks), total: "个完成" },
+          { label: "模拟面试", value: String(res.interviewRounds), total: "轮" },
+          { label: "系统设计", value: String(res.systemDesignCount), total: "道" },
+        ]);
+      })
+      .catch(() => {
+        // keep default mock data
+      });
+  }, []);
+
   return (
     <div className="pt-16 min-h-screen bg-gray-50">
       <div className="max-w-5xl mx-auto px-4 py-8">
         <h1 className="text-2xl font-bold text-gray-900 mb-6">学习进度</h1>
 
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
-          {STATS.map((s) => (
+          {stats.map((s) => (
             <div key={s.label} className="bg-white rounded-2xl p-5 border border-gray-100">
               <div className="text-sm text-gray-500 mb-1">{s.label}</div>
               <div className="flex items-baseline gap-1">
@@ -72,7 +89,7 @@ export default function ProgressPage() {
           <div className="bg-white rounded-2xl p-6 border border-gray-100">
             <h2 className="font-bold text-gray-900 mb-4">近4周活跃</h2>
             <div className="space-y-2">
-              {HEATMAP.map((week, wi) => (
+              {heatmap.map((week, wi) => (
                 <div key={wi} className="flex gap-2">
                   {week.map((level, di) => (
                     <div

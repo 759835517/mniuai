@@ -47,7 +47,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           : (typeof raw.skills === 'string' && raw.skills ? raw.skills.split('\n').filter(Boolean) : []),
         learningGoal: raw.learningGoal ?? raw.goal ?? null,
         availableHours: raw.availableHours ?? raw.weeklyHours ?? 0,
-        roles: raw.roles ?? ["USER"],
+        roles: raw.roles ?? (raw.role ? [raw.role] : ["USER"]),
         status: raw.status ?? "ACTIVE",
         createdAt: raw.createdAt ?? new Date().toISOString(),
       };
@@ -80,7 +80,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           : (typeof raw.skills === 'string' && raw.skills ? raw.skills.split('\n').filter(Boolean) : []),
         learningGoal: raw.learningGoal ?? raw.goal ?? null,
         availableHours: raw.availableHours ?? raw.weeklyHours ?? 0,
-        roles: raw.roles ?? ["USER"],
+        roles: raw.roles ?? (raw.role ? [raw.role] : ["USER"]),
         status: raw.status ?? "ACTIVE",
         createdAt: raw.createdAt ?? new Date().toISOString(),
       };
@@ -107,7 +107,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           : (typeof raw.skills === 'string' && raw.skills ? raw.skills.split('\n').filter(Boolean) : []),
         learningGoal: raw.learningGoal ?? raw.goal ?? null,
         availableHours: raw.availableHours ?? raw.weeklyHours ?? 0,
-        roles: raw.roles ?? ["USER"],
+        roles: raw.roles ?? (raw.role ? [raw.role] : ["USER"]),
         status: raw.status ?? "ACTIVE",
         createdAt: raw.createdAt ?? new Date().toISOString(),
       };

@@ -1,25 +1,25 @@
-# Back-end Module Structure (D:\IdeaProjects\mniuai\back-end)
+# RAG 知识库实施进度（2026-07-28）
 
-## Module Layout
-- Base package: `com.mniu.aicamp`
-- 10 modules: `auth / coach / growth / landing / notification / project / review / roadmap / shared / user`
-- Each module: `api / application / domain / infrastructure` (some have `infrastructure/{converter,mapper,po}`)
+## 已完成
+- V18__rag_pgvector.sql 迁移
+- EmbeddingPort 接口 + DashScopeEmbeddingClient + FakeEmbeddingClient
+- TextChunker（500字符+50重叠）
+- VectorTypeHandler（pgvector 类型映射）
+- DocumentChunkPO + DocumentChunkMapper（含余弦相似度查询）
+- RagService（search + buildRagContext）
+- DocumentChunkService（indexLesson + indexAllPublishedLessons）
 
-## Typical CRUD Pattern (roadmap)
-- **Controller**: `@RestController @RequestMapping("/api/v1/roadmaps")`, `@Valid @RequestBody`, `@PathVariable`, `CurrentUsers.require().id()`, returns `ApiResponse<T>` / `PageResponse<T>`
-- **Service**: `@Service`, `@Transactional` on writes, returns `record` types, MyBatis-Plus `Wrappers.lambdaQuery/lambdaUpdate`
-- **Mapper**: `@Mapper interface XxxMapper extends BaseMapper<XxxPO>`
-- **PO**: `@Data @TableName("xxx")`, `@TableId(type=IdType.INPUT) Long id`, camelCase auto-mapped
-- **Record**: `public record Roadmap(@JsonSerialize(using=ToStringSerializer.class) Long id, ...)`
+## 进行中
+- RagController（admin 端点）
+- CoachService 改造（注入 RagService）
 
-## Security
-- `CurrentUser` = `record(Long id, String email)` — **NO role field**
-- `CurrentUsers.require()` gets user from SecurityContextHolder
-- `SecurityConfig`: Bearer token, only `/api/v1/auth/**`, `/api/v1/landing/**`, actuator, swagger are public; rest `authenticated()`
-- **No ADMIN role, no @PreAuthorize, no hasRole — login-only auth**
+## 待完成
+- 单元测试：TextChunkerTest、FakeEmbeddingClientTest、RagServiceTest
+- 编译验证 + 全部测试运行
+- E2E 测试
+- 产品验收
 
-## DB Migrations
-- `src/main/resources/db/migration/V{N}__{description}.sql`
-- V1 init schema, V2 comments, V3 UUID→snowflake bigint
-- Flyway enabled in application.yml (`baseline-on-migrate: true`)
-- MyBatis-Plus `id-type: INPUT` + SnowflakeIdGenerator, logic-delete field `deleted`
+## 架构决策
+- CoachService 通过 buildCoachPrompt 注入 RAG context（lessonId 可为 null 表示全库检索）
+- RagController 使用 /api/v1/admin/rag 路径（与 AdminCourseController 一致）
+- app.rag.enabled 配置控制是否启用 RAG 注入

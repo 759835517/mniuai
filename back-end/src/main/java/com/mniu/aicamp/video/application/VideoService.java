@@ -48,7 +48,8 @@ public class VideoService {
         VideoProgressPO progress = findProgress(userId, lessonId).orElse(null);
         int lastPosition = progress == null ? 0 : progress.getLastPositionSec();
         boolean completed = progress != null && Boolean.TRUE.equals(progress.getCompleted());
-        return new PlayUrlResponse(lesson.getVideoUrl(), lesson.getVideoDuration(), lastPosition, completed);
+        return new PlayUrlResponse(lesson.getVideoUrl(), lesson.getHlsManifestUrl(),
+                lesson.getVideoDuration(), lastPosition, completed);
     }
 
     /**

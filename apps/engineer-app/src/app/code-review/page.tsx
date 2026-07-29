@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { engineerApi } from "@/lib/api";
 
 const LANGS = ["JavaScript", "TypeScript", "Python", "Java", "Go", "SQL"];
 
@@ -24,25 +25,30 @@ export default function CodeReviewPage() {
     setReviewing(true);
     setReport("");
     try {
-      const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/code-review`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${localStorage.getItem("token") || ""}`,
-          },
-          body: JSON.stringify({ code, language: lang }),
-        }
-      );
-      if (!res.body) return;
-      const reader = res.body.getReader();
-      const decoder = new TextDecoder();
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        setReport((prev) => prev + decoder.decode(value));
+      const res = await engineerApi.reviewCode({ code, language: lang });
+      // 格式化审查报告
+      let text = `## 综合评分：${res.totalScore}/100\n\n`;
+      if (res.criticalIssues.length > 0) {
+        text += "## 🚨 严重问题\n";
+        res.criticalIssues.forEach((issue) => {
+          text += `- [${issue.dimension}] ${issue.before}，建议：${issue.after}\n`;
+        });
+        text += "\n";
       }
+      if (res.improvements.length > 0) {
+        text += "## ⚠️ 需要改进\n";
+        res.improvements.forEach((issue) => {
+          text += `- [${issue.dimension}] ${issue.before}，建议：${issue.after}\n`;
+        });
+        text += "\n";
+      }
+      if (res.goodPoints.length > 0) {
+        text += "## ✅ 做得好的地方\n";
+        res.goodPoints.forEach((point) => {
+          text += `- ${point}\n`;
+        });
+      }
+      setReport(text);
     } catch {
       setReport("审查失败，请稍后重试。");
     } finally {

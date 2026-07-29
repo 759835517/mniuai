@@ -9,7 +9,7 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        brand: { blue: "#2563EB", indigo: "#4F46E5", slate: "#0F172A" },
+        brand: { blue: "#2563EB", indigo: "#4F46E5", slate: "#0F172A", orange: "#F97316" },
       },
       animation: {
         fadeInUp: "fadeInUp 0.6s ease-out",

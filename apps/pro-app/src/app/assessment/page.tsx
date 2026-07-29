@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { proApi } from "@/lib/api";
 
 const QUESTIONS = [
   { id: 1, dim: "文档写作", q: "你通常需要多久写完一份完整的PRD或方案？", opts: ["1小时以内", "1-3小时", "3-6小时", "6小时以上"] },
@@ -17,29 +18,52 @@ const QUESTIONS = [
 
 const DIMS = ["文档写作", "数据分析", "沟通汇报", "项目管理", "AI工具"];
 
-function calcScore(answers: Record<number, number>) {
-  const dimScores: Record<string, number> = {};
-  DIMS.forEach((d) => { dimScores[d] = 0; });
-  QUESTIONS.forEach((q) => {
-    const ans = answers[q.id] ?? 0;
-    dimScores[q.dim] = (dimScores[q.dim] || 0) + (3 - ans) * 25;
-  });
-  return dimScores;
-}
-
 export default function AssessmentPage() {
   const [phase, setPhase] = useState<"start" | "quiz" | "result">("start");
   const [current, setCurrent] = useState(0);
   const [answers, setAnswers] = useState<Record<number, number>>({});
+  const [result, setResult] = useState<{
+    dimensionScores: Record<string, number>;
+    totalScore: number;
+    level: string;
+    recommendation: string;
+  } | null>(null);
+  const [loading, setLoading] = useState(false);
 
-  function handleAnswer(idx: number) {
+  async function handleAnswer(idx: number) {
     const q = QUESTIONS[current];
     const next = { ...answers, [q.id]: idx };
     setAnswers(next);
     if (current + 1 < QUESTIONS.length) {
       setCurrent(current + 1);
     } else {
-      setPhase("result");
+      // 提交答案到后端
+      setLoading(true);
+      try {
+        const res = await proApi.submitAssessment({ answers: next });
+        // axios 拦截器已解包，res 直接是数据
+        setResult({
+          dimensionScores: (res as any)?.dimensionScores || {},
+          totalScore: (res as any)?.totalScore || 0,
+          level: (res as any)?.level || "AI萌新",
+          recommendation: (res as any)?.recommendation || "",
+        });
+        setPhase("result");
+      } catch {
+        // 即使 API 失败，也显示本地计算结果
+        const dimScores: Record<string, number> = {};
+        DIMS.forEach((d) => { dimScores[d] = 0; });
+        QUESTIONS.forEach((quest) => {
+          const ans = next[quest.id] ?? 0;
+          dimScores[quest.dim] = (dimScores[quest.dim] || 0) + (3 - ans) * 25;
+        });
+        const totalScore = Math.round(Object.values(dimScores).reduce((a, b) => a + b, 0) / DIMS.length);
+        const level = totalScore >= 75 ? "AI高手" : totalScore >= 55 ? "AI达人" : totalScore >= 35 ? "AI提效型" : "AI萌新";
+        setResult({ dimensionScores: dimScores, totalScore, level, recommendation: "建议从 AI文档写作 和 AI会议纪要 开始" });
+        setPhase("result");
+      } finally {
+        setLoading(false);
+      }
     }
   }
 
@@ -105,9 +129,18 @@ export default function AssessmentPage() {
     );
   }
 
-  const scores = calcScore(answers);
-  const level = Object.values(scores).reduce((a, b) => a + b, 0) / DIMS.length;
-  const levelLabel = level >= 75 ? "AI高手" : level >= 55 ? "AI达人" : level >= 35 ? "AI提效型" : "AI萌新";
+  if (loading) {
+    return (
+      <div className="pt-16 min-h-screen bg-gray-50 flex items-center justify-center px-4">
+        <div className="text-center">
+          <div className="animate-spin w-10 h-10 border-4 border-green-200 border-t-green-500 rounded-full mx-auto mb-4" />
+          <p className="text-gray-500">AI正在分析你的能力...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!result) return null;
 
   return (
     <div className="pt-16 min-h-screen bg-gray-50">
@@ -116,7 +149,7 @@ export default function AssessmentPage() {
           <div className="text-4xl mb-3">🎉</div>
           <h2 className="text-2xl font-bold text-gray-900 mb-1">诊断完成</h2>
           <span className="inline-block bg-green-100 text-green-700 text-sm font-semibold px-3 py-1 rounded-full">
-            能力等级：{levelLabel}
+            能力等级：{result.level}
           </span>
         </div>
         <div className="bg-white rounded-2xl p-6 border border-gray-100 mb-6">
@@ -126,10 +159,10 @@ export default function AssessmentPage() {
               <div key={d}>
                 <div className="flex justify-between text-sm mb-1">
                   <span className="text-gray-600">{d}</span>
-                  <span className="font-semibold text-gray-900">{scores[d]}</span>
+                  <span className="font-semibold text-gray-900">{result.dimensionScores[d] || 0}</span>
                 </div>
                 <div className="h-2 bg-gray-100 rounded-full">
-                  <div className="h-full bg-green-500 rounded-full" style={{ width: `${scores[d]}%` }} />
+                  <div className="h-full bg-green-500 rounded-full" style={{ width: `${result.dimensionScores[d] || 0}%` }} />
                 </div>
               </div>
             ))}
@@ -137,13 +170,13 @@ export default function AssessmentPage() {
         </div>
         <div className="bg-green-50 rounded-2xl p-5 border border-green-100 mb-6">
           <h3 className="font-semibold text-green-800 mb-2">推荐优先使用</h3>
-          <p className="text-sm text-green-700">根据你的诊断结果，建议从 <strong>AI文档写作</strong> 和 <strong>AI会议纪要</strong> 开始，提升最明显的工作场景。</p>
+          <p className="text-sm text-green-700">{result.recommendation}</p>
         </div>
         <div className="flex gap-3">
           <a href="/tools" className="flex-1 text-center bg-green-600 text-white font-semibold py-3 rounded-full hover:bg-green-700 transition-colors">
             开始使用工具
           </a>
-          <button onClick={() => { setPhase("start"); setCurrent(0); setAnswers({}); }} className="flex-1 text-center border border-gray-300 text-gray-700 font-semibold py-3 rounded-full hover:border-green-400 transition-colors">
+          <button onClick={() => { setPhase("start"); setCurrent(0); setAnswers({}); setResult(null); }} className="flex-1 text-center border border-gray-300 text-gray-700 font-semibold py-3 rounded-full hover:border-green-400 transition-colors">
             重新诊断
           </button>
         </div>

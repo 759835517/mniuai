@@ -1,4 +1,4 @@
-import { createApiClient, createAuthApi, createCampusApi } from "@mniuai/api-client";
+import { createApiClient, createAuthApi, createCampusApi, createInterviewApi } from "@mniuai/api-client";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8080/api/v1";
 
@@ -42,5 +42,6 @@ const client = createApiClient(API_BASE_URL, getToken);
 // 导出 API 模块
 export const authApi = createAuthApi(client);
 export const campusApi = createCampusApi(client);
+export const interviewApi = createInterviewApi(client);
 
 export { client };

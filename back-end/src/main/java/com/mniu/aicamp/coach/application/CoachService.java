@@ -11,6 +11,7 @@ import com.mniu.aicamp.project.infrastructure.mapper.ProjectMapper;
 import com.mniu.aicamp.project.infrastructure.mapper.ProjectTaskMapper;
 import com.mniu.aicamp.project.infrastructure.po.ProjectPO;
 import com.mniu.aicamp.project.infrastructure.po.ProjectTaskPO;
+import com.mniu.aicamp.rag.application.RagService;
 import com.mniu.aicamp.roadmap.infrastructure.mapper.RoadmapMapper;
 import com.mniu.aicamp.roadmap.infrastructure.mapper.RoadmapTaskMapper;
 import com.mniu.aicamp.roadmap.infrastructure.po.RoadmapPO;
@@ -44,6 +45,7 @@ public class CoachService {
     private final RoadmapTaskMapper roadmapTasks;
     private final ProjectMapper projects;
     private final ProjectTaskMapper projectTasks;
+    private final RagService ragService;
 
     public CoachService(AiClientPort aiClient,
                         SnowflakeIdGenerator idGenerator,
@@ -54,7 +56,8 @@ public class CoachService {
                         RoadmapMapper roadmaps,
                         RoadmapTaskMapper roadmapTasks,
                         ProjectMapper projects,
-                        ProjectTaskMapper projectTasks) {
+                        ProjectTaskMapper projectTasks,
+                        RagService ragService) {
         this.aiClient = aiClient;
         this.idGenerator = idGenerator;
         this.users = users;
@@ -65,6 +68,7 @@ public class CoachService {
         this.roadmapTasks = roadmapTasks;
         this.projects = projects;
         this.projectTasks = projectTasks;
+        this.ragService = ragService;
     }
 
     public CoachSession createSession(Long userId, String title, String contextType) {
@@ -209,6 +213,12 @@ public class CoachService {
         appendProjectMemory(userId, prompt);
         appendCrossSessionMemory(userId, sessionId, prompt);
         appendShortTermMemory(sessionId, prompt);
+
+        // RAG 知识库上下文注入
+        String ragContext = ragService.buildRagContext(currentMessage, null);
+        if (!ragContext.isEmpty()) {
+            prompt.append(ragContext);
+        }
 
         prompt.append("\nCurrent user message\n");
         prompt.append(currentMessage == null ? "" : currentMessage);

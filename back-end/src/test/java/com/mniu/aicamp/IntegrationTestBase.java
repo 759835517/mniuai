@@ -10,7 +10,9 @@ import org.testcontainers.containers.PostgreSQLContainer;
 @SpringBootTest(properties = {
         "app.ai.provider=fake",
         "app.repository.provider=fake",
-        "spring.ai.dashscope.api-key=test-key"
+        "spring.ai.dashscope.api-key=test-key",
+        "app.interview.seed-enabled=false",
+        "app.article.seed-enabled=false"
 })
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 public abstract class IntegrationTestBase {
@@ -18,7 +20,7 @@ public abstract class IntegrationTestBase {
         System.setProperty("testcontainers.ryuk.disabled", "true");
     }
 
-    static final PostgreSQLContainer<?> POSTGRES = new PostgreSQLContainer<>("postgres:17-alpine")
+    static final PostgreSQLContainer<?> POSTGRES = new PostgreSQLContainer<>("pgvector/pgvector:pg17")
             .withDatabaseName("mniu_ai_camp")
             .withUsername("mniu")
             .withPassword("mniu_dev_password");

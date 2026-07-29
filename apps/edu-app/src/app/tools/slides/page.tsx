@@ -2,26 +2,21 @@
 
 import { useState } from "react";
 import { ToolLayout } from "@/components/tools/ToolLayout";
+import { eduApi } from "@/lib/api";
 
 const STYLES = ["简约", "活泼", "学术"];
 const SUBJECTS = ["语文", "数学", "英语", "物理", "化学", "历史", "通用"];
 const GRADES = ["小学", "初中", "高中", "大学"];
-
-interface SlidePreview {
-  page: number;
-  title: string;
-  points: string[];
-}
 
 export default function SlidesPage() {
   const [form, setForm] = useState({
     topic: "",
     subject: "语文",
     grade: "初中",
-    objective: "",
+    duration: "45分钟",
     style: "简约",
   });
-  const [slides, setSlides] = useState<SlidePreview[]>([]);
+  const [slides, setSlides] = useState<any[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
 
@@ -41,13 +36,15 @@ export default function SlidesPage() {
     setIsGenerating(true);
 
     try {
-      const res = await fetch("/api/v1/edu/slides/generate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
+      const res = await eduApi.generateSlides({
+        subject: form.subject,
+        grade: form.grade,
+        topic: form.topic,
+        duration: form.duration,
+        style: form.style,
       });
-      const data = await res.json();
-      setSlides(data.slides || []);
+      // axios 拦截器已解包，res 直接是数据
+      setSlides((res as any)?.slides || []);
     } catch {
       alert("生成失败，请稍后重试");
     } finally {
@@ -58,16 +55,16 @@ export default function SlidesPage() {
   const handleExport = async () => {
     setIsExporting(true);
     try {
-      const res = await fetch("/api/v1/edu/slides/export", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ slides, ...form }),
-      });
-      const blob = await res.blob();
+      const text = slides.map((s: any) =>
+        `第${s.pageNumber}页：${s.title}\n${s.content}\n备注：${s.notes || "—"}`
+      ).join("\n\n---\n\n");
+      const blob = new Blob([text], { type: "text/plain;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
-      a.href = URL.createObjectURL(blob);
-      a.download = `${form.topic}-课件.pptx`;
+      a.href = url;
+      a.download = `${form.topic}-课件.txt`;
       a.click();
+      URL.revokeObjectURL(url);
     } catch {
       alert("导出失败，请稍后重试");
     } finally {
@@ -121,15 +118,6 @@ export default function SlidesPage() {
         </div>
       </div>
 
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">
-          课时目标 <span className="text-gray-400 font-normal">(选填)</span>
-        </label>
-        <textarea name="objective" value={form.objective} onChange={handleChange}
-          rows={2} placeholder="例：理解光合作用的概念，掌握光合作用方程式..."
-          className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-orange-400 resize-none" />
-      </div>
-
       <button onClick={handleGenerate} disabled={isGenerating}
         className="w-full bg-orange-500 hover:bg-orange-600 disabled:bg-orange-300 text-white font-semibold py-3 rounded-xl transition-colors">
         {isGenerating ? "⚡ 正在生成课件..." : "🚀 AI生成课件结构"}
@@ -138,7 +126,7 @@ export default function SlidesPage() {
       {slides.length > 0 && (
         <button onClick={handleExport} disabled={isExporting}
           className="w-full border-2 border-orange-500 text-orange-500 hover:bg-orange-50 font-semibold py-3 rounded-xl transition-colors">
-          {isExporting ? "导出中..." : "📤 导出 PPTX"}
+          {isExporting ? "导出中..." : "📤 导出课件"}
         </button>
       )}
     </div>
@@ -166,22 +154,27 @@ export default function SlidesPage() {
           <div className="flex items-center justify-between mb-2">
             <h3 className="font-semibold text-gray-900">课件预览（{slides.length}页）</h3>
           </div>
-          {slides.map((slide) => (
-            <div key={slide.page} className="border border-gray-100 rounded-xl p-4 hover:border-orange-200 transition-colors">
+          {slides.map((slide: any) => (
+            <div key={slide.pageNumber} className="border border-gray-100 rounded-xl p-4 hover:border-orange-200 transition-colors">
               <div className="flex items-center gap-2 mb-2">
                 <span className="text-xs font-semibold text-white bg-gray-400 w-6 h-6 rounded-full flex items-center justify-center">
-                  {slide.page}
+                  {slide.pageNumber}
                 </span>
                 <span className="font-medium text-gray-900 text-sm">{slide.title}</span>
               </div>
               <ul className="space-y-1">
-                {slide.points.map((p, i) => (
+                {slide.content?.split("\n").filter((l: string) => l.trim()).map((line: string, i: number) => (
                   <li key={i} className="text-xs text-gray-500 flex items-start gap-1">
                     <span className="text-orange-400 mt-0.5">•</span>
-                    {p}
+                    {line.replace(/^•\s*/, "")}
                   </li>
                 ))}
               </ul>
+              {slide.notes && (
+                <div className="mt-2 text-xs text-blue-500 bg-blue-50 rounded-lg px-2 py-1">
+                  📝 {slide.notes}
+                </div>
+              )}
             </div>
           ))}
         </div>

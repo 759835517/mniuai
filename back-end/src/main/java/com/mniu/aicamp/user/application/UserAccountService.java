@@ -54,7 +54,8 @@ public class UserAccountService {
 
     private UserAccount toUserAccount(UserPO po) {
         return new UserAccount(po.getId(), po.getEmail(), po.getPasswordHash(), po.getDisplayName(),
-                split(po.getSkills()), po.getGoal(), po.getWeeklyHours() == null ? 0 : po.getWeeklyHours());
+                split(po.getSkills()), po.getGoal(), po.getWeeklyHours() == null ? 0 : po.getWeeklyHours(),
+                po.getRole() == null ? "USER" : po.getRole());
     }
 
     private String blankTo(String value, String fallback) {

@@ -1,47 +1,7 @@
 "use client";
 
 import { useState } from "react";
-
-const MOCK_MINUTES = `# 会议纪要
-
-## 基本信息
-- **会议主题**：Q3营销策略讨论
-- **时间**：2026年7月28日 14:00-15:30
-- **参与人**：张三（产品）、李四（运营）、王五（市场）
-
----
-
-## 会议结论
-
-1. Q3核心目标定为：DAU增长20%，付费转化提升5%
-2. 确认8月初上线积分体系，运营侧配合活动策划
-3. 小红书KOL投放预算调整为8万元
-
----
-
-## 关键决策
-
-| 决策项 | 负责人 | 截止日期 |
-|---|---|---|
-| 完成积分体系PRD | 张三 | 7月31日 |
-| KOL资源整理 | 王五 | 8月5日 |
-| Q3活动方案 | 李四 | 8月10日 |
-
----
-
-## 待办事项（Action Items）
-
-- [ ] [张三] 完成积分体系需求文档（截止：7月31日）
-- [ ] [王五] 筛选10位小红书KOL候选（截止：8月5日）
-- [ ] [李四] 输出Q3活动策划方案（截止：8月10日）
-- [ ] [全员] 下次会议前完成各自任务自查
-
----
-
-## 下次会议
-
-- **时间**：8月12日 14:00
-- **议题**：Q3方案最终确认`;
+import { proApi } from "@/lib/api";
 
 export default function MeetingPage() {
   const [topic, setTopic] = useState("");
@@ -54,9 +14,19 @@ export default function MeetingPage() {
   async function handleGenerate() {
     if (!record.trim()) return;
     setLoading(true);
-    await new Promise((r) => setTimeout(r, 2000));
-    setOutput(MOCK_MINUTES);
-    setLoading(false);
+    try {
+      const res = await proApi.generateMeetingMinutes({
+        topic: topic || undefined,
+        participants: participants || undefined,
+        record,
+      });
+      // axios 拦截器已解包，res 直接是数据
+      setOutput((res as any)?.minutes || "");
+    } catch {
+      alert("生成失败，请稍后重试");
+    } finally {
+      setLoading(false);
+    }
   }
 
   function handleCopy() {

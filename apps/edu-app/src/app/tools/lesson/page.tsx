@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { ToolLayout } from "@/components/tools/ToolLayout";
 import { AIStreamOutput } from "@/components/tools/AIStreamOutput";
+import { eduApi } from "@/lib/api";
 
 const SUBJECTS = ["语文", "数学", "英语", "物理", "化学", "历史", "政治", "生物", "地理", "体育", "其他"];
 const GRADES = ["一年级", "二年级", "三年级", "四年级", "五年级", "六年级", "初一", "初二", "初三", "高一", "高二", "高三"];
@@ -38,37 +39,16 @@ export default function LessonPage() {
     setIsStreaming(true);
 
     try {
-      const res = await fetch("/api/v1/edu/lesson/generate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
+      const res = await eduApi.generateLesson({
+        subject: form.subject,
+        grade: form.grade,
+        topic: form.topic,
+        duration: form.duration,
+        objective: form.objective || undefined,
+        textbook: form.textbook,
       });
-
-      if (!res.ok) throw new Error("生成失败");
-      if (!res.body) throw new Error("无响应体");
-
-      const reader = res.body.getReader();
-      const decoder = new TextDecoder();
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        const chunk = decoder.decode(value, { stream: true });
-        const lines = chunk.split("\n");
-        for (const line of lines) {
-          if (line.startsWith("data: ")) {
-            const data = line.slice(6);
-            if (data === "[DONE]") break;
-            try {
-              const json = JSON.parse(data);
-              const text = json.choices?.[0]?.delta?.content || "";
-              setOutput((prev) => prev + text);
-            } catch {
-              // 忽略解析错误
-            }
-          }
-        }
-      }
+      // axios 拦截器已解包，res 直接是数据
+      setOutput(typeof res === "string" ? res : JSON.stringify(res));
     } catch (err) {
       setOutput("生成失败，请检查网络或稍后重试。");
     } finally {
@@ -83,16 +63,12 @@ export default function LessonPage() {
   };
 
   const handleExport = async (format: "word" | "pdf") => {
-    const res = await fetch("/api/v1/edu/lesson/export", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ content: output, format, ...form }),
-    });
-    const blob = await res.blob();
+    // 简化版：直接下载文本
+    const blob = new Blob([output], { type: "text/plain;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `${form.topic}-教案.${format === "word" ? "docx" : "pdf"}`;
+    a.download = `${form.topic}-教案.${format === "word" ? "txt" : "txt"}`;
     a.click();
     URL.revokeObjectURL(url);
   };

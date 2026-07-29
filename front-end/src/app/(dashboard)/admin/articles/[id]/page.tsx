@@ -36,12 +36,11 @@ export default function AdminArticleEditorPage() {
   useEffect(() => {
     if (isNew) return;
     articleApi.adminGet(id)
-      .then((a: ArticleSummary) => {
+      .then((a) => {
         setTitle(a.title);
         setSlug(a.slug);
         setSummary(a.summary);
-        // content 只在 detail 返回，这里用 summary 占位
-        setContent(a.summary);
+        setContent(a.content ?? "");
         setCoverUrl(a.coverUrl ?? "");
         setCategory(a.category);
         setTags(a.tags.join(", "));

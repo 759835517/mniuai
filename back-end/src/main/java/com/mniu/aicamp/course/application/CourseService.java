@@ -96,6 +96,23 @@ public class CourseService {
 
     // ========== Admin 端 ==========
 
+    public PageResponse<Course> listAll(String status, String category, int page, int size) {
+        List<CoursePO> all = courses.selectList(Wrappers.<CoursePO>lambdaQuery()
+                .eq(status != null, CoursePO::getStatus, status)
+                .eq(category != null, CoursePO::getCategory, category)
+                .orderByAsc(CoursePO::getSortOrder));
+        List<Course> items = all.stream().map(this::toCourse).toList();
+        return PageResponse.of(items, page, size);
+    }
+
+    public Course getCourseById(Long id) {
+        CoursePO po = courses.selectById(id);
+        if (po == null) {
+            throw new BusinessException(ErrorCode.COURSE_NOT_FOUND, "Course not found");
+        }
+        return toCourse(po);
+    }
+
     @Transactional
     public Course createCourse(CourseCreateRequest r) {
         CoursePO po = new CoursePO();
@@ -144,6 +161,13 @@ public class CourseService {
         courses.deleteById(id);
     }
 
+    public List<Lesson> listLessons(Long courseId) {
+        return lessons.selectList(Wrappers.<LessonPO>lambdaQuery()
+                .eq(LessonPO::getCourseId, courseId)
+                .orderByAsc(LessonPO::getSortOrder))
+                .stream().map(this::toLesson).toList();
+    }
+
     @Transactional
     public Lesson createLesson(Long courseId, LessonCreateRequest r) {
         if (courses.selectById(courseId) == null) {
@@ -155,6 +179,7 @@ public class CourseService {
         po.setTitle(r.title());
         po.setDescription(r.description());
         po.setVideoUrl(r.videoUrl());
+        po.setHlsManifestUrl(r.hlsManifestUrl());
         po.setVideoDuration(r.videoDuration());
         po.setThumbnailUrl(r.thumbnailUrl());
         po.setSortOrder(r.sortOrder());
@@ -177,6 +202,7 @@ public class CourseService {
         update.setTitle(r.title());
         update.setDescription(r.description());
         update.setVideoUrl(r.videoUrl());
+        update.setHlsManifestUrl(r.hlsManifestUrl());
         update.setVideoDuration(r.videoDuration());
         update.setThumbnailUrl(r.thumbnailUrl());
         update.setSortOrder(r.sortOrder());
@@ -222,7 +248,7 @@ public class CourseService {
 
     private Lesson toLesson(LessonPO po) {
         return new Lesson(po.getId(), po.getCourseId(), po.getTitle(), po.getDescription(),
-                po.getVideoUrl(), po.getVideoDuration(), po.getThumbnailUrl(),
+                po.getVideoUrl(), po.getHlsManifestUrl(), po.getVideoDuration(), po.getThumbnailUrl(),
                 po.getSortOrder(), po.getFree(), po.getRequiresExamPass(), po.getStatus());
     }
 }

@@ -210,6 +210,14 @@ public class ArticleService {
         return toArticle(po);
     }
 
+    public ArticleDetail getDetailById(Long id) {
+        ArticlePO po = articles.selectById(id);
+        if (po == null) {
+            throw new BusinessException(ErrorCode.NOT_FOUND, "Article not found");
+        }
+        return toArticleDetail(po);
+    }
+
     // ========== 内部方法 ==========
 
     private String generateSlug(String title) {

@@ -12,5 +12,6 @@ public record UserAccount(@JsonSerialize(using = ToStringSerializer.class) Long 
                           String displayName,
                           List<String> skills,
                           String goal,
-                          int weeklyHours) {
+                          int weeklyHours,
+                          String role) {
 }

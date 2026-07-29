@@ -2,20 +2,39 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { authApi, setTokens } from "@/lib/api";
 
 export default function LoginPage() {
+  const router = useRouter();
   const [tab, setTab] = useState<"login" | "register">("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
-    await new Promise((r) => setTimeout(r, 1000));
-    setLoading(false);
-    window.location.href = "/my/progress";
+    setError("");
+
+    try {
+      if (tab === "login") {
+        const res = await authApi.login({ email, password });
+        setTokens(res.accessToken, res.refreshToken);
+        router.push("/my/progress");
+      } else {
+        const res = await authApi.register({ email, password, name });
+        setTokens(res.accessToken, res.refreshToken);
+        router.push("/my/progress");
+      }
+    } catch (err: unknown) {
+      const apiError = err as { error?: { message?: string } };
+      setError(apiError?.error?.message || "操作失败，请稍后重试");
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
@@ -24,7 +43,9 @@ export default function LoginPage() {
         <div className="text-center mb-8">
           <Link href="/" className="inline-flex items-center gap-2 text-gray-900">
             <span className="text-3xl">🎓</span>
-            <span className="font-bold text-xl">萌牛AI<span className="text-blue-500 text-sm ml-1">大学生</span></span>
+            <span className="font-bold text-xl">
+              萌牛AI<span className="text-blue-500 text-sm ml-1">大学生</span>
+            </span>
           </Link>
         </div>
 
@@ -34,7 +55,10 @@ export default function LoginPage() {
             {(["login", "register"] as const).map((t) => (
               <button
                 key={t}
-                onClick={() => setTab(t)}
+                onClick={() => {
+                  setTab(t);
+                  setError("");
+                }}
                 className={`flex-1 py-2 text-sm font-medium rounded-lg transition-all ${
                   tab === t ? "bg-white shadow text-gray-900" : "text-gray-500"
                 }`}
@@ -44,10 +68,18 @@ export default function LoginPage() {
             ))}
           </div>
 
+          {error && (
+            <div className="mb-4 bg-red-50 border border-red-200 text-red-600 text-sm rounded-xl px-4 py-3">
+              {error}
+            </div>
+          )}
+
           <form onSubmit={handleSubmit} className="space-y-4">
             {tab === "register" && (
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">姓名</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  姓名
+                </label>
                 <input
                   type="text"
                   value={name}
@@ -59,7 +91,9 @@ export default function LoginPage() {
               </div>
             )}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">邮箱</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                邮箱
+              </label>
               <input
                 type="email"
                 value={email}
@@ -70,7 +104,9 @@ export default function LoginPage() {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">密码</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                密码
+              </label>
               <input
                 type="password"
                 value={password}
@@ -86,16 +122,24 @@ export default function LoginPage() {
               disabled={loading}
               className="w-full bg-blue-500 hover:bg-blue-600 disabled:opacity-50 text-white font-semibold py-3 rounded-xl transition-colors"
             >
-              {loading ? "处理中..." : tab === "login" ? "登录" : "免费注册，体验7天"}
+              {loading
+                ? "处理中..."
+                : tab === "login"
+                  ? "登录"
+                  : "免费注册，体验7天"}
             </button>
           </form>
 
           {tab === "register" && (
             <p className="text-xs text-gray-400 text-center mt-4">
               注册即同意
-              <Link href="/terms" className="text-blue-400 mx-1">服务协议</Link>
+              <Link href="/terms" className="text-blue-400 mx-1">
+                服务协议
+              </Link>
               和
-              <Link href="/privacy" className="text-blue-400 ml-1">隐私政策</Link>
+              <Link href="/privacy" className="text-blue-400 ml-1">
+                隐私政策
+              </Link>
             </p>
           )}
         </div>

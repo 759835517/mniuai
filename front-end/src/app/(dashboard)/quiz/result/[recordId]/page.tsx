@@ -45,7 +45,7 @@ export default function ExamResultPage() {
     return <p className="text-center text-[#8B949E]">记录不存在</p>;
   }
 
-  const levelInfo = levelLabels[record.passed ? "GOOD" : "FAIL"];
+  const levelInfo = levelLabels[record.passed ? "GOOD" : "FAIL"] ?? { label: "未知", color: "text-[#8B949E]" };
   const correctRate = record.totalQuestions > 0
     ? Math.round((record.correctCount / record.totalQuestions) * 100)
     : 0;

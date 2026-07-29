@@ -7,9 +7,9 @@ export type * from "./types/common";
 
 // 共享 API 模块（三端均可使用）
 export * from "./modules/auth";
-export * from "./modules/user";
-export * from "./modules/video";
-export * from "./modules/article";
-export * from "./modules/exam";
-export * from "./modules/growth";
-export * from "./modules/notification";
+export * from "./modules/campus";
+export * from "./modules/interview";
+export * from "./modules/edu";
+export * from "./modules/pro";
+export * from "./modules/engineer";
+export * from "./modules/kids";

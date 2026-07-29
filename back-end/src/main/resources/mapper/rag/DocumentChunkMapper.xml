@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.mniu.aicamp.rag.infrastructure.mapper.DocumentChunkMapper">
+
+    <resultMap id="DocumentChunkResultMap" type="com.mniu.aicamp.rag.infrastructure.mapper.DocumentChunkMapper$DocumentChunkResult">
+        <id property="id" column="id"/>
+        <result property="lessonId" column="lesson_id"/>
+        <result property="courseId" column="course_id"/>
+        <result property="chunkIndex" column="chunk_index"/>
+        <result property="content" column="content"/>
+        <result property="similarity" column="similarity"/>
+    </resultMap>
+
+    <select id="searchSimilar" resultMap="DocumentChunkResultMap">
+        SELECT id, lesson_id, course_id, chunk_index, content,
+               1 - (embedding &lt;=&gt; CAST(#{embedding} AS vector)) AS similarity
+        FROM document_chunks
+        <where>
+            <choose>
+                <when test="lessonId != null">
+                    lesson_id = #{lessonId}
+                </when>
+            </choose>
+        </where>
+        ORDER BY embedding &lt;=&gt; CAST(#{embedding} AS vector)
+        LIMIT #{limit}
+    </select>
+
+</mapper>

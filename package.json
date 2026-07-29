@@ -1,0 +1,23 @@
+{
+  "name": "mniuai",
+  "private": true,
+  "scripts": {
+    "dev": "turbo run dev",
+    "dev:engineer": "turbo run dev --filter=@mniuai/engineer-app",
+    "dev:kids": "turbo run dev --filter=@mniuai/kids-app",
+    "dev:admin": "turbo run dev --filter=@mniuai/admin-app",
+    "build": "turbo run build",
+    "lint": "turbo run lint",
+    "type-check": "turbo run type-check",
+    "clean": "turbo run clean && rm -rf node_modules"
+  },
+  "devDependencies": {
+    "turbo": "^2.3.3",
+    "typescript": "^5.9.3"
+  },
+  "packageManager": "pnpm@9.15.0",
+  "engines": {
+    "node": ">=18.18.0",
+    "pnpm": ">=9.0.0"
+  }
+}

@@ -1,0 +1,3 @@
+interface:
+  display_name: "Young准则"
+  short_description: "LLM 编码行为准则：简单优先、精确修改、目标驱动"

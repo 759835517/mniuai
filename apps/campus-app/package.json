@@ -1,0 +1,33 @@
+{
+  "name": "@mniuai/campus-app",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev -p 3003",
+    "build": "next build",
+    "start": "next start -p 3003",
+    "lint": "next lint"
+  },
+  "dependencies": {
+    "next": "14.2.35",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-hook-form": "^7.51.0",
+    "framer-motion": "^11.0.0",
+    "zustand": "^4.5.0",
+    "@monaco-editor/react": "^4.6.0",
+    "hls.js": "^1.5.7",
+    "@mniuai/ui": "workspace:*",
+    "@mniuai/api-client": "workspace:*",
+    "@mniuai/utils": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^20",
+    "@types/react": "^18",
+    "@types/react-dom": "^18",
+    "typescript": "^5",
+    "tailwindcss": "^3.4.1",
+    "postcss": "^8",
+    "autoprefixer": "^10.4.17"
+  }
+}

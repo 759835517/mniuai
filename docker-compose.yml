@@ -1,0 +1,77 @@
+version: "3.8"
+
+# mniuai 本地开发基础设施
+# 启动: docker compose up -d
+# 停止: docker compose down
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg17
+    container_name: mniuai-postgres
+    environment:
+      POSTGRES_DB: mniu_ai_camp
+      POSTGRES_USER: mniu
+      POSTGRES_PASSWORD: "123456"
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U mniu -d mniu_ai_camp"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:8.2.5-alpine
+    container_name: mniuai-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  judge0:
+    image: judge0/judge0:1.13.1
+    container_name: mniuai-judge0
+    ports:
+      - "2358:2358"
+    environment:
+      - DATABASE_URL=postgresql://mniu:123456@postgres:5432/mniu_ai_camp
+      - REDIS_URL=redis://redis:6379
+      - JUDGE0_WORKERS=2
+      - JUDGE0_AUTH_TOKEN=${JUDGE0_AUTH_TOKEN:-}
+      - ENABLE_WAIT_RESULT=true
+      - ENABLE_COMPILER_OPTIONS=true
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - judge0-data:/judge0_data
+    restart: unless-stopped
+
+  judge0-worker:
+    image: judge0/judge0:1.13.1
+    container_name: mniuai-judge0-worker
+    command: ["./scripts/workers"]
+    environment:
+      - DATABASE_URL=postgresql://mniu:123456@postgres:5432/mniu_ai_camp
+      - REDIS_URL=redis://redis:6379
+      - JUDGE0_WORKERS=2
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  pgdata:
+  redisdata:
+  judge0-data:
